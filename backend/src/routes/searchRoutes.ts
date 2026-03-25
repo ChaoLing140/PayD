@@ -1,32 +1,66 @@
 import { Router } from 'express';
-import searchController from '../controllers/searchController';
-import { authenticateJWT } from '../middlewares/auth';
-import { isolateOrganization } from '../middlewares/rbac';
-import { requireTenantContext } from '../middleware/tenantContext';
+import searchController from '../controllers/searchController.js';
+import { authenticateJWT } from '../middlewares/auth.js';
+import { isolateOrganization } from '../middlewares/rbac.js';
+import { requireTenantContext } from '../middleware/tenantContext.js';
 
 const router = Router();
+
+/**
+ * @swagger
+ * tags:
+ *   name: Data Search
+ *   description: Search and filter employees and transactions
+ */
 
 // Apply global authentication and isolation to all search routes
 router.use(authenticateJWT);
 router.use(isolateOrganization);
+router.use(requireTenantContext);
 
 /**
- * @route GET /api/search/organizations/:organizationId/employees
- * @desc Search and filter employees
+ * @swagger
+ * /api/v1/search/organizations/{organizationId}/employees:
+ *   get:
+ *     summary: Search and filter employees
+ *     tags: [Data Search]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organizationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Success
  */
 router.get(
   '/organizations/:organizationId/employees',
-  requireTenantContext,
   searchController.searchEmployees.bind(searchController)
 );
 
 /**
- * @route GET /api/search/organizations/:organizationId/transactions
- * @desc Search and filter transactions
+ * @swagger
+ * /api/v1/search/organizations/{organizationId}/transactions:
+ *   get:
+ *     summary: Search and filter transactions
+ *     tags: [Data Search]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: organizationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Success
  */
 router.get(
   '/organizations/:organizationId/transactions',
-  requireTenantContext,
   searchController.searchTransactions.bind(searchController)
 );
 

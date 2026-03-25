@@ -3,7 +3,7 @@
  * Tests for parsing contract configuration from TOML and environment variables
  */
 
-import { ContractConfigService } from '../contractConfigService';
+import { ContractConfigService } from '../contractConfigService.js';
 import fs from 'fs';
 import path from 'path';
 

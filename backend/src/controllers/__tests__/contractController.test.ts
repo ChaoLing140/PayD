@@ -4,9 +4,9 @@
  */
 
 import { Request, Response } from 'express';
-import { ContractController } from '../contractController';
-import { ContractConfigService } from '../../services/contractConfigService';
-import { ContractEntry } from '../../utils/contractValidator';
+import { ContractController } from '../contractController.js';
+import { ContractConfigService } from '../../services/contractConfigService.js';
+import { ContractEntry } from '../../utils/contractValidator.js';
 
 // Mock the config service
 jest.mock('../../services/contractConfigService');

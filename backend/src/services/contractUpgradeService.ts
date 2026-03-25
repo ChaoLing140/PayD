@@ -15,7 +15,7 @@
  */
 
 import { Keypair, TransactionBuilder, Networks, SorobanRpc, Contract, xdr } from '@stellar/stellar-sdk';
-import { pool } from '../config/database';
+import { pool } from '../config/database.js';
 
 // ---------------------------------------------------------------------------
 // Environment helpers (mirror the pattern from stellarService.ts)
@@ -102,10 +102,10 @@ const WASM_HASH_REGEX = /^[0-9a-f]{64}$/i;
 
 /** Default post-upgrade migration steps — extend per contract in future. */
 const DEFAULT_MIGRATION_STEPS: Omit<MigrationStep, 'id'>[] = [
-  { name: 'Verify on-chain contract state',       status: 'pending', message: null },
+  { name: 'Verify on-chain contract state', status: 'pending', message: null },
   { name: 'Validate storage schema compatibility', status: 'pending', message: null },
-  { name: 'Re-index contract data entries',        status: 'pending', message: null },
-  { name: 'Emit upgrade audit event',              status: 'pending', message: null },
+  { name: 'Re-index contract data entries', status: 'pending', message: null },
+  { name: 'Emit upgrade audit event', status: 'pending', message: null },
 ];
 
 /**
@@ -272,7 +272,8 @@ export class ContractUpgradeService {
         notes ?? null,
       ]
     );
-    const upgradeLogId = logResult.rows[0].id;
+    const upgradeLogId = logResult.rows[0]?.id;
+    if (!upgradeLogId) throw new Error('Failed to insert log row');
 
     // ── Attempt Soroban RPC simulation ───────────────────────────────────
     let simulation: UpgradeSimulationResult;
@@ -646,20 +647,24 @@ export class ContractUpgradeService {
       `SELECT migration_steps, registry_id FROM contract_upgrade_logs WHERE id = $1`,
       [upgradeLogId]
     );
-    if (!logResult.rows[0]) return;
+    const row = logResult.rows[0];
+    if (!row) return;
 
-    const steps: MigrationStep[] = logResult.rows[0].migration_steps;
+    const steps: MigrationStep[] = row.migration_steps;
 
     for (let i = 0; i < steps.length; i++) {
-      steps[i] = { ...steps[i], status: 'running', message: null };
+      const currentStep = steps[i];
+      if (!currentStep) continue;
+
+      steps[i] = { ...currentStep, status: 'running', message: null };
       await ContractUpgradeService.persistMigrationSteps(upgradeLogId, steps);
 
       try {
-        await ContractUpgradeService.executeStep(steps[i], logResult.rows[0].registry_id);
-        steps[i] = { ...steps[i], status: 'completed', message: 'Step completed successfully.' };
+        await ContractUpgradeService.executeStep(steps[i]!, row.registry_id);
+        steps[i] = { ...steps[i]!, status: 'completed', message: 'Step completed successfully.' };
       } catch (stepErr: unknown) {
         const msg = stepErr instanceof Error ? stepErr.message : 'Step failed';
-        steps[i] = { ...steps[i], status: 'failed', message: msg };
+        steps[i] = { ...steps[i]!, status: 'failed', message: msg };
         await ContractUpgradeService.persistMigrationSteps(upgradeLogId, steps);
 
         // Mark the upgrade log as failed on step failure
@@ -667,10 +672,11 @@ export class ContractUpgradeService {
           `UPDATE contract_upgrade_logs
            SET status = 'failed', error_message = $1, completed_at = NOW()
            WHERE id = $2`,
-          [`Migration step '${steps[i].name}' failed: ${msg}`, upgradeLogId]
+          [`Migration step '${steps[i]!.name}' failed: ${msg}`, upgradeLogId]
         );
         return;
       }
+
 
       await ContractUpgradeService.persistMigrationSteps(upgradeLogId, steps);
     }
@@ -794,10 +800,11 @@ export class ContractUpgradeService {
 
     return {
       data: dataResult.rows,
-      total: parseInt(countResult.rows[0].count, 10),
+      total: parseInt(countResult.rows[0]?.count || '0', 10),
       page: Math.max(1, page),
       limit: safeLimit,
     };
+
   }
 
   /**

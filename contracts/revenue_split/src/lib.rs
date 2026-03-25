@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, Vec, token};
+use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Vec, token};
 
 #[cfg(test)]
 mod test;
@@ -10,6 +10,9 @@ pub enum DataKey {
     Admin,
     Recipients,
 }
+
+const PERSISTENT_TTL_THRESHOLD: u32 = 20_000;
+const PERSISTENT_TTL_EXTEND_TO: u32 = 120_000;
 
 #[derive(Clone)]
 #[contracttype]
@@ -25,9 +28,26 @@ pub struct RevenueSplitContract;
 
 #[contractimpl]
 impl RevenueSplitContract {
+    // ── SEP-0034 Contract Metadata (Issue #263) ───────────────────────────
+
+    /// Returns the human-readable contract name (SEP-0034).
+    pub fn name(env: Env) -> String {
+        String::from_str(&env, "PayD Revenue Split")
+    }
+
+    /// Returns the contract version string (SEP-0034).
+    pub fn version(env: Env) -> String {
+        String::from_str(&env, "0.0.1")
+    }
+
+    /// Returns the contract author / organization (SEP-0034).
+    pub fn author(env: Env) -> String {
+        String::from_str(&env, "The Aha Company")
+    }
+
     /// Initialize the contract with an admin and an initial set of recipients/shares.
     pub fn init(env: Env, admin: Address, shares: Vec<RecipientShare>) {
-        if env.storage().instance().has(&DataKey::Admin) {
+        if env.storage().persistent().has(&DataKey::Admin) {
             panic!("Already initialized");
         }
         
@@ -40,20 +60,22 @@ impl RevenueSplitContract {
             panic!("Shares must sum to 10000 basis points");
         }
 
-        env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage().instance().set(&DataKey::Recipients, &shares);
+        env.storage().persistent().set(&DataKey::Admin, &admin);
+        env.storage().persistent().set(&DataKey::Recipients, &shares);
+        Self::bump_core_ttl(&env);
     }
 
     /// Allows the current admin to set a new admin.
     pub fn set_admin(env: Env, new_admin: Address) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("Not initialized");
+        let admin: Address = env.storage().persistent().get(&DataKey::Admin).expect("Admin entry unavailable; restore and retry");
         admin.require_auth();
-        env.storage().instance().set(&DataKey::Admin, &new_admin);
+        env.storage().persistent().set(&DataKey::Admin, &new_admin);
+        Self::bump_core_ttl(&env);
     }
 
     /// Updates the recipient splits dynamically (admin only).
     pub fn update_recipients(env: Env, new_shares: Vec<RecipientShare>) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("Not initialized");
+        let admin: Address = env.storage().persistent().get(&DataKey::Admin).expect("Admin entry unavailable; restore and retry");
         admin.require_auth();
 
         let mut total_bp = 0;
@@ -65,14 +87,23 @@ impl RevenueSplitContract {
             panic!("Shares must sum to 10000 basis points");
         }
 
-        env.storage().instance().set(&DataKey::Recipients, &new_shares);
+        env.storage().persistent().set(&DataKey::Recipients, &new_shares);
+        Self::bump_core_ttl(&env);
+    }
+
+    /// Extends TTL for critical organization configuration.
+    pub fn bump_ttl(env: Env) {
+        let admin: Address = env.storage().persistent().get(&DataKey::Admin).expect("Admin entry unavailable; restore and retry");
+        admin.require_auth();
+        Self::bump_core_ttl(&env);
     }
 
     /// Distributes a specific token amount from a sender to the listed recipients based on their shares.
     pub fn distribute(env: Env, token: Address, from: Address, amount: i128) {
         from.require_auth();
         
-        let shares: Vec<RecipientShare> = env.storage().instance().get(&DataKey::Recipients).expect("Not initialized");
+        let shares: Vec<RecipientShare> = env.storage().persistent().get(&DataKey::Recipients).expect("Recipients entry unavailable; restore and retry");
+        Self::bump_core_ttl(&env);
         let client = token::Client::new(&env, &token);
 
         let mut amount_distributed = 0;
@@ -93,6 +124,18 @@ impl RevenueSplitContract {
                     client.transfer(&from, &share.destination, &recipient_amount);
                     amount_distributed += recipient_amount;
                 }
+            }
+        }
+    }
+
+    fn bump_core_ttl(env: &Env) {
+        for key in [DataKey::Admin, DataKey::Recipients] {
+            if env.storage().persistent().has(&key) {
+                env.storage().persistent().extend_ttl(
+                    &key,
+                    PERSISTENT_TTL_THRESHOLD,
+                    PERSISTENT_TTL_EXTEND_TO,
+                );
             }
         }
     }

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { ContractUpgradeService } from '../services/contractUpgradeService';
+import { ContractUpgradeService } from '../services/contractUpgradeService.js';
 
 // ---------------------------------------------------------------------------
 // Validation schemas — defined once at module scope (O(1) memory)
@@ -246,9 +246,10 @@ export class ContractUpgradeController {
    */
   private static handleError(error: unknown, res: Response): void {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Validation Error', details: error.errors });
+      res.status(400).json({ error: 'Validation Error', details: error.issues });
       return;
     }
+
 
     // Stellar SDK throws when a secret key is invalid
     const msg = error instanceof Error ? error.message : '';
