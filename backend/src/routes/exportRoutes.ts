@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { ExportController } from '../controllers/exportController.js';
+import { exportDownloadAuth } from '../middlewares/exportDownloadAuth.js';
+import { authenticateJWT } from '../middlewares/auth.js';
 
 const router = Router();
 
