@@ -170,10 +170,10 @@ export async function executePayroll(
   );
 
   if (!response.ok) {
-    const errorData = await response.json();
+    const errorData = (await response.json()) as { error?: string };
     throw new Error(errorData.error || `Execution failed (${response.status})`);
   }
 
-  const payload = await response.json();
+  const payload = (await response.json()) as { success: boolean; jobId: string };
   return payload;
 }
