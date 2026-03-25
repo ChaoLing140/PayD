@@ -21,10 +21,8 @@ passport.use(
         }
 
         // 1. Check if user exists by email
-        const existingUserResult = await pool.query('SELECT * FROM users WHERE email = $1', [
-          email,
-        ]);
-        let user = existingUserResult.rows[0];
+        const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        let user = userResult.rows[0];
 
         if (!user) {
           // 2. Create new user if doesn't exist
@@ -71,10 +69,8 @@ passport.use(
           return done(new Error('No email found in GitHub profile'));
         }
 
-        const existingUserResult = await pool.query('SELECT * FROM users WHERE email = $1', [
-          email,
-        ]);
-        let user = existingUserResult.rows[0];
+        const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        let user = userResult.rows[0];
 
         if (!user) {
           const newUserResult = await pool.query(

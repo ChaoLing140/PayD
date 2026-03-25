@@ -153,3 +153,27 @@ export async function retryFailedBatch(
 
   return { txHash: submitted.hash };
 }
+
+export async function executePayroll(
+  runId: number | string,
+  organizationId: number | string
+): Promise<{ success: boolean; jobId: string }> {
+  const response = await fetch(
+    `${normalizeBaseUrl(API_BASE_URL)}/api/v1/payroll-bonus/runs/${runId}/execute`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ organizationId }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = (await response.json()) as { error?: string };
+    throw new Error(errorData.error || `Execution failed (${response.status})`);
+  }
+
+  const payload = (await response.json()) as { success: boolean; jobId: string };
+  return payload;
+}

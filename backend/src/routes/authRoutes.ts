@@ -2,6 +2,57 @@ import { Router } from 'express';
 import passport from 'passport';
 import { generateToken } from '../services/authService.js';
 
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: Authentication API endpoints
+ */
+
+/**
+ * @swagger
+ * /auth/google:
+ *   get:
+ *     summary: Initiate Google OAuth login
+ *     tags: [Auth]
+ *     responses:
+ *       302:
+ *         description: Redirect to Google authentication page
+ */
+
+/**
+ * @swagger
+ * /auth/google/callback:
+ *   get:
+ *     summary: Google OAuth callback
+ *     tags: [Auth]
+ *     responses:
+ *       302:
+ *         description: Redirect to frontend dashboard with JWT token
+ */
+
+/**
+ * @swagger
+ * /auth/github:
+ *   get:
+ *     summary: Initiate GitHub OAuth login
+ *     tags: [Auth]
+ *     responses:
+ *       302:
+ *         description: Redirect to GitHub authentication page
+ */
+
+/**
+ * @swagger
+ * /auth/github/callback:
+ *   get:
+ *     summary: GitHub OAuth callback
+ *     tags: [Auth]
+ *     responses:
+ *       302:
+ *         description: Redirect to frontend dashboard with JWT token
+ */
+
 const router = Router();
 
 // Google Auth
