@@ -113,7 +113,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setIsConnecting(true);
     try {
       kit.setWallet(selectedWalletId);
-      
+
       const { address } = await Promise.race([
         kit.getAddress(),
         new Promise<{ address: string }>((_, reject) =>
