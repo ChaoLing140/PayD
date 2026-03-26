@@ -84,7 +84,7 @@ export function BulkPaymentStatusTracker({ organizationId }: BulkPaymentStatusTr
   const [isRetryingKey, setIsRetryingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { notifyError, notifySuccess } = useNotification();
+  const { notifyError, notifyPaymentSuccess, notifyApiError } = useNotification();
   const { socket } = useSocket();
   const { address, requireWallet } = useWallet();
   const { sign } = useWalletSigning();
@@ -98,11 +98,11 @@ export function BulkPaymentStatusTracker({ organizationId }: BulkPaymentStatusTr
     } catch (loadError) {
       const message = loadError instanceof Error ? loadError.message : 'Failed to load bulk runs';
       setError(message);
-      notifyError('Bulk payment load failed', message);
+      notifyApiError('Bulk payment load failed', message);
     } finally {
       setIsLoading(false);
     }
-  }, [notifyError, organizationId]);
+  }, [notifyApiError, organizationId]);
 
   useEffect(() => {
     void loadRuns();
@@ -139,10 +139,10 @@ export function BulkPaymentStatusTracker({ organizationId }: BulkPaymentStatusTr
           onChainError instanceof Error
             ? onChainError.message
             : 'Unable to load on-chain batch state';
-        notifyError('Bulk on-chain read failed', message);
+        notifyApiError('Bulk on-chain read failed', message);
       }
     },
-    [address, notifyError, onChainStates]
+    [address, notifyApiError, onChainStates]
   );
 
   useEffect(() => {
@@ -217,7 +217,7 @@ export function BulkPaymentStatusTracker({ organizationId }: BulkPaymentStatusTr
         signTransaction: sign,
       });
 
-      notifySuccess('Retry submitted', `Batch ${run.batch_id} was re-invoked. TX: ${txHash}`);
+      notifyPaymentSuccess(txHash, 'Retry submitted');
       const refreshedSummary = await fetchPayrollRunSummary(run.id);
       setSummaries((prev) => ({ ...prev, [run.id]: refreshedSummary }));
       await loadOnChainState(run, refreshedSummary);

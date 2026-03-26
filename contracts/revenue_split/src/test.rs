@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use crate::{RevenueSplitContract, RevenueSplitContractClient, RecipientShare};
-use soroban_sdk::{testutils::{Address as _}, Address, Env, Vec};
+use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env, Vec};
 use soroban_sdk::token::Client as TokenClient;
 use soroban_sdk::token::StellarAssetClient;
 
@@ -143,6 +143,19 @@ fn test_double_init_panics() {
 fn test_set_admin() {
     let env = Env::default();
     env.mock_all_auths();
+// ══════════════════════════════════════════════════════════════════════════════
+// ── LEDGER SEQUENCE VERIFICATION TESTS (Issue #173) ───────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+#[test]
+#[should_panic(expected = "Distribution already processed in this ledger sequence")]
+fn test_distribute_replay_same_ledger() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().set_sequence_number(50);
+
+    let token_admin = Address::generate(&env);
+    let (token_id, stellar_asset_client, _) = create_token_contract(&env, &token_admin);
 
     let contract_id = env.register(RevenueSplitContract, ());
     let client = RevenueSplitContractClient::new(&env, &contract_id);
@@ -175,6 +188,27 @@ fn test_sep0034_metadata() {
 fn test_distribution_remainder_goes_to_last_recipient() {
     let env = Env::default();
     env.mock_all_auths();
+    let recipient = Address::generate(&env);
+    let shares = Vec::from_array(&env, [
+        RecipientShare { destination: recipient.clone(), basis_points: 10000 },
+    ]);
+    client.init(&admin, &shares);
+
+    let sender = Address::generate(&env);
+    stellar_asset_client.mint(&sender, &2000);
+
+    // First distribution at ledger 50 succeeds
+    client.distribute(&token_id, &sender, &1000);
+
+    // Second distribution at the same ledger 50 should panic
+    client.distribute(&token_id, &sender, &500);
+}
+
+#[test]
+fn test_distribute_allowed_different_ledgers() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().set_sequence_number(50);
 
     let token_admin = Address::generate(&env);
     let (token_id, stellar_asset_client, token_client) = create_token_contract(&env, &token_admin);
@@ -231,4 +265,25 @@ fn test_update_recipients_invalid_sum_panics() {
         RecipientShare { destination: recipient2.clone(), basis_points: 5000 },
     ]);
     client.update_recipients(&bad_shares);
+    let client = RevenueSplitContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    let shares = Vec::from_array(&env, [
+        RecipientShare { destination: recipient.clone(), basis_points: 10000 },
+    ]);
+    client.init(&admin, &shares);
+
+    let sender = Address::generate(&env);
+    stellar_asset_client.mint(&sender, &2000);
+
+    client.distribute(&token_id, &sender, &1000);
+    assert_eq!(client.get_last_distribute_ledger(), 50);
+
+    // Advance to a new ledger
+    env.ledger().set_sequence_number(51);
+
+    client.distribute(&token_id, &sender, &500);
+    assert_eq!(client.get_last_distribute_ledger(), 51);
+    assert_eq!(token_client.balance(&recipient), 1500);
 }
