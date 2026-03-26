@@ -58,8 +58,8 @@ pub struct PaymentOp {
     pub amount: i128,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[contracttype]
-#[derive(Clone, Debug)]
 pub struct BatchRecord {
     pub sender: Address,
     pub token: Address,
@@ -123,31 +123,47 @@ impl BulkPaymentContract {
         }
 
         let mut total: i128 = 0;
+        let mut success_count: u32 = 0;
+        
+        // Use a single loop to calculate total and validate (O(n))
         for op in payments.iter() {
             if op.amount <= 0 {
                 return Err(ContractError::InvalidAmount);
             }
             total = total.checked_add(op.amount).ok_or(ContractError::AmountOverflow)?;
+            success_count += 1;
         }
 
         let token_client = token::Client::new(&env, &token);
-        token_client.transfer(&sender, &env.current_contract_address(), &total);
+        let current_contract = env.current_contract_address();
+        
+        // Single transfer of total amount to escrow
+        token_client.transfer(&sender, &current_contract, &total);
 
+        // Distribute from escrow to recipients
         for op in payments.iter() {
-            token_client.transfer(&env.current_contract_address(), &op.recipient, &op.amount);
+            token_client.transfer(&current_contract, &op.recipient, &op.amount);
         }
 
         let batch_id = Self::next_batch_id(&env);
-        env.storage().instance().set(&DataKey::Batch(batch_id), &BatchRecord {
+        let record = BatchRecord {
             sender,
             token,
             total_sent: total,
-            success_count: len,
+            success_count,
             fail_count: 0,
             status: soroban_sdk::symbol_short!("completed"),
-        });
+        };
 
-        BatchExecutedEvent { batch_id, total_sent: total };
+        // Use Persistent storage for historical records to keep Instance storage small
+        let key = DataKey::Batch(batch_id);
+        env.storage().persistent().set(&key, &record);
+        
+        // Extend TTL to ensure record is available for off-chain querying (1 year minimum suggested)
+        // 500,000 ledgers is ~30 days, we could extend more if needed.
+        env.storage().persistent().extend_ttl(&key, 100_000, 500_000);
+
+        BatchExecutedEvent { batch_id, total_sent: total }.publish(&env);
         Ok(batch_id)
     }
 
@@ -187,24 +203,17 @@ impl BulkPaymentContract {
         let mut total_sent: i128 = 0;
 
         for op in payments.iter() {
+            // Optimized: Use references in loop where possible (implicit by SDK Vec iter)
             if op.amount <= 0 || remaining < op.amount {
                 fail_count += 1;
-                PaymentSkippedEvent {
-                    recipient: op.recipient.clone(),
-                    amount: op.amount,
-                }
-               ;
+                PaymentSkippedEvent { recipient: op.recipient.clone(), amount: op.amount }.publish(&env);
                 continue;
             }
             token_client.transfer(&contract_addr, &op.recipient, &op.amount);
             remaining -= op.amount;
             total_sent += op.amount;
             success_count += 1;
-            PaymentSentEvent {
-                recipient: op.recipient.clone(),
-                amount: op.amount,
-            }
-            ;
+            PaymentSentEvent { recipient: op.recipient.clone(), amount: op.amount }.publish(&env);
         }
 
         if remaining > 0 {
@@ -220,16 +229,21 @@ impl BulkPaymentContract {
         };
 
         let batch_id = Self::next_batch_id(&env);
-        env.storage().instance().set(&DataKey::Batch(batch_id), &BatchRecord {
+        let record = BatchRecord {
             sender,
             token,
             total_sent,
             success_count,
             fail_count,
             status,
-        });
+        };
+        
+        let key = DataKey::Batch(batch_id);
+        env.storage().persistent().set(&key, &record);
+        
+        env.storage().persistent().extend_ttl(&key, 100_000, 500_000);
 
-        BatchPartialEvent { batch_id, success_count, fail_count };
+        BatchPartialEvent { batch_id, success_count, fail_count }.publish(&env);
         Ok(batch_id)
     }
 
@@ -238,10 +252,15 @@ impl BulkPaymentContract {
     }
 
     pub fn get_batch(env: Env, batch_id: u64) -> Result<BatchRecord, ContractError> {
-        env.storage()
-            .instance()
-            .get(&DataKey::Batch(batch_id))
-            .ok_or(ContractError::BatchNotFound)
+        let key = DataKey::Batch(batch_id);
+        let record = env.storage()
+            .persistent()
+            .get(&key)
+            .ok_or(ContractError::BatchNotFound)?;
+            
+        // Extend TTL on access to keep "hot" batch records alive longer
+        env.storage().persistent().extend_ttl(&key, 100_000, 500_000);
+        Ok(record)
     }
 
     pub fn get_batch_count(env: Env) -> u64 {

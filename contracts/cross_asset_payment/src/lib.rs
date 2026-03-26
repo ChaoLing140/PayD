@@ -1,6 +1,24 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env, String, Symbol, token};
+use soroban_sdk::{contract, contractimpl, contracttype, contractevent, symbol_short, Address, Env, String, Symbol, token};
+
+// ── Events ────────────────────────────────────────────────────────────────────
+
+#[contractevent]
+pub struct PaymentInitiatedEvent {
+    #[topic]
+    pub payment_id: u64,
+    pub from: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+pub struct PaymentStatusUpdatedEvent {
+    #[topic]
+    pub payment_id: u64,
+    pub new_status: Symbol,
+}
+
 
 #[contracttype]
 #[derive(Clone)]
@@ -10,8 +28,8 @@ pub enum DataKey {
     PaymentCount,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[contracttype]
-#[derive(Clone, Debug)]
 pub struct PaymentRecord {
     pub from: Address,
     pub amount: i128,
@@ -68,13 +86,15 @@ impl CrossAssetPaymentContract {
             status: symbol_short!("pending"),
         };
 
-        env.storage().instance().set(&DataKey::Payment(count), &record);
+        // Store the payment record in Persistent storage to keep Instance storage light
+        let key = DataKey::Payment(count);
+        env.storage().persistent().set(&key, &record);
+        
+        // Extend TTL (3 months default)
+        env.storage().persistent().extend_ttl(&key, 100_000, 1_500_000);
 
-        // Emit an event for backend/anchor tracking
-        env.events().publish(
-            (symbol_short!("pay_init"), count),
-            record,
-        );
+        // Emit typed event for backend/anchor tracking
+        PaymentInitiatedEvent { payment_id: count, from: record.from.clone(), amount: record.amount }.publish(&env);
 
         count
     }
@@ -84,22 +104,26 @@ impl CrossAssetPaymentContract {
         let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("Not initialized");
         admin.require_auth();
 
-        let mut record: PaymentRecord = env.storage().instance()
-            .get(&DataKey::Payment(payment_id))
+        let key = DataKey::Payment(payment_id);
+        let mut record: PaymentRecord = env.storage().persistent()
+            .get(&key)
             .expect("Payment not found");
 
-        record.status = new_status;
-        env.storage().instance().set(&DataKey::Payment(payment_id), &record);
+        record.status = new_status.clone();
+        env.storage().persistent().set(&key, &record);
+        env.storage().persistent().extend_ttl(&key, 100_000, 1_500_000);
 
-        env.events().publish(
-            (symbol_short!("pay_upd"), payment_id),
-            new_status,
-        );
+        PaymentStatusUpdatedEvent { payment_id, new_status }.publish(&env);
     }
 
     /// Get details of a payment.
     pub fn get_payment(env: Env, payment_id: u64) -> Option<PaymentRecord> {
-        env.storage().instance().get(&DataKey::Payment(payment_id))
+        let key = DataKey::Payment(payment_id);
+        let record = env.storage().persistent().get(&key);
+        if record.is_some() {
+            env.storage().persistent().extend_ttl(&key, 100_000, 1_500_000);
+        }
+        record
     }
 }
 
