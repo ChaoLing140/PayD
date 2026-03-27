@@ -138,7 +138,8 @@ export default function BulkPayrollUpload() {
     } catch (error: unknown) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       const msg = typeof errorMsg === 'string' ? errorMsg : 'Unknown error occurred';
-      notifyError('Submission failed', msg);
+      const notifyErrorFn = notifyError as (title: string, message: string) => void;
+      notifyErrorFn('Submission failed', msg);
       console.error('Batch submission error:', error);
       // Modal stays open, user can retry
     } finally {
@@ -281,7 +282,7 @@ export default function BulkPayrollUpload() {
         paymentCount={validRows.length}
         totalAmount={totalAmount.toFixed(2)}
         currency={primaryCurrency}
-        onConfirm={handleConfirmFees}
+        onConfirm={() => { void handleConfirmFees(); }}
         onCancel={handleCancelFees}
         confirmLabel={isSubmitting ? 'Submitting...' : 'Confirm & Pay'}
         cancelLabel="Back to Upload"

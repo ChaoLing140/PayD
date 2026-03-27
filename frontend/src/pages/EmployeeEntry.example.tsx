@@ -80,7 +80,8 @@ export const EmployeeEntry: React.FC = () => {
     const employee = employees.find((e) => e.id === employeeId);
     if (!employee) {
       const notifyErrorFn = notifyError as (message: string) => void;
-      notifyErrorFn(t('errors.employeeNotFound', 'Employee not found'));
+      const errorMsg = t('errors.employeeNotFound', 'Employee not found');
+      notifyErrorFn(errorMsg);
       return;
     }
 
@@ -130,11 +131,10 @@ export const EmployeeEntry: React.FC = () => {
 
         // Show success notification
         const notifySuccessFn = notifySuccess as (message: string) => void;
-        notifySuccessFn(
-          t('notifications.employeeRemoved', 'Employee {name} has been removed', {
-            name: employee.name,
-          })
-        );
+        const successMsg = t('notifications.employeeRemoved', 'Employee {name} has been removed', {
+          name: employee.name,
+        });
+        notifySuccessFn(successMsg);
 
         // Track successful removal
         gtag('event', 'employee_removed', {
@@ -146,11 +146,10 @@ export const EmployeeEntry: React.FC = () => {
         const employeeError = error as Record<string, unknown>;
         const msg = (employeeError?.message as string) || 'Unknown error';
         const notifyErrorFn = notifyError as (message: string) => void;
-        notifyErrorFn(
-          t('errors.employeeRemovalFailed', 'Failed to remove employee: {error}', {
-            error: msg,
-          })
-        );
+        const errorMsg = t('errors.employeeRemovalFailed', 'Failed to remove employee: {error}', {
+          error: msg,
+        });
+        notifyErrorFn(errorMsg);
 
         // Track removal failure
         gtag('event', 'employee_removal_failed', {
@@ -216,11 +215,10 @@ export const EmployeeEntry: React.FC = () => {
       });
 
       const notifySuccessFn = notifySuccess as (message: string) => void;
-      notifySuccessFn(
-        t('notifications.employeeAdded', 'Employee {name} has been added', {
-          name: newEmployee.name,
-        })
-      );
+      const addMsg = t('notifications.employeeAdded', 'Employee {name} has been added', {
+        name: newEmployee.name,
+      });
+      notifySuccessFn(addMsg);
     },
     [t, gtag]
   );
