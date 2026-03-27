@@ -265,7 +265,9 @@ export default function EmployeeEntry() {
                 label="Preferred Payout Asset"
                 note="The employee will receive salary in this asset. A trustline must exist in their wallet."
                 value={formData.currency}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleSelectChange('currency', e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  handleSelectChange('currency', e.target.value)
+                }
               >
                 {SUPPORTED_ASSETS.map((asset) => (
                   <option key={asset.code} value={asset.code}>
