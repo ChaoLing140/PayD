@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build",
     "install:contracts": "npm install --workspace=packages && npm run build --workspace=packages",
     "contracts:bootstrap": "python3 scripts/local_contract_bootstrap.py",
+    "contracts:bootstrap:dry-run": "python3 scripts/local_contract_bootstrap.py --dry-run",
     "preview": "vite preview",
     "test:docs": "node --test tests/*.test.mjs",
     "lint": "eslint .",

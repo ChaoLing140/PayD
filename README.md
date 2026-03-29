@@ -270,11 +270,16 @@ If you want to build, deploy, and seed the local Soroban contracts in one pass,
 use the bootstrap helper:
 
 ```bash
-python3 scripts/local_contract_bootstrap.py --dry-run
+npm run contracts:bootstrap:dry-run
 ```
 
 The script lives in [docs/LOCAL_CONTRACT_BOOTSTRAP.md](docs/LOCAL_CONTRACT_BOOTSTRAP.md)
-and can be run with `--contract` flags to limit the scope.
+and can be run with `--contract` flags to limit the scope. When you are ready to
+execute against the local network instead of previewing the plan, use:
+
+```bash
+npm run contracts:bootstrap -- --contract bulk_payment,cross_asset_payment
+```
 
 ## 🙌 Contributors
 

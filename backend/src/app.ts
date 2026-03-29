@@ -10,7 +10,7 @@ import logger from './utils/logger.js';
 import passport from './config/passport.js';
 import { apiVersionMiddleware } from './middlewares/apiVersionMiddleware.js';
 import { REQUEST_ID_HEADER, requestIdMiddleware } from './middlewares/requestIdMiddleware.js';
-import { apiRateLimit, authRateLimit, dataRateLimit } from './middlewares/rateLimitMiddleware.js';
+import { apiRateLimit, dataRateLimit } from './middlewares/rateLimitMiddleware.js';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swaggerConfig.js';
 import fs from 'fs';
@@ -135,10 +135,10 @@ app.get('/api', (_req, res) => {
 // Deprecation headers are injected automatically by apiVersionMiddleware.
 // ---------------------------------------------------------------------------
 app.use('/rates', dataRateLimit(), ratesRoutes);
-app.use('/auth', authRateLimit(), authRoutes);
+app.use('/auth', authRoutes);
 app.use('/webhooks', apiRateLimit(), webhookRoutes);
 app.use('/api/notifications', apiRateLimit(), notificationRoutes);
-app.use('/api/auth', authRateLimit(), authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/payroll/audit', apiRateLimit(), payrollAuditRoutes);
 app.use('/api/payroll', apiRateLimit(), payrollRoutes);
 app.use('/api/employees', dataRateLimit(), employeeRoutes);
