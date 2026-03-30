@@ -215,9 +215,7 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
           {sortedEmployees.length === 0 ? (
             <tr>
               <td colSpan={6} className="p-6 text-center text-gray-500">
-                {debouncedSearch
-                  ? `No employees match "${debouncedSearch}"`
-                  : 'No employees found'}
+                {debouncedSearch ? `No employees match "${debouncedSearch}"` : 'No employees found'}
               </td>
             </tr>
           ) : (

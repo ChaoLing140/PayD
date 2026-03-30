@@ -24,7 +24,9 @@ describe('useDebounce', () => {
     rerender({ value: 'updated' });
 
     // Advance only 100ms — should still have the old value
-    act(() => { vi.advanceTimersByTime(100); });
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
     expect(result.current).toBe('initial');
   });
 
@@ -35,7 +37,9 @@ describe('useDebounce', () => {
 
     rerender({ value: 'updated' });
 
-    act(() => { vi.advanceTimersByTime(300); });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
     expect(result.current).toBe('updated');
   });
 
@@ -45,15 +49,21 @@ describe('useDebounce', () => {
     });
 
     rerender({ value: 'b' });
-    act(() => { vi.advanceTimersByTime(200); });
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
 
     rerender({ value: 'c' });
-    act(() => { vi.advanceTimersByTime(200); });
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
 
     // 400ms total since 'a', 200ms since 'c' — timer should not have fired yet
     expect(result.current).toBe('a');
 
-    act(() => { vi.advanceTimersByTime(100); });
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
     // Now 300ms since 'c' was set — debounce should fire
     expect(result.current).toBe('c');
   });
@@ -65,10 +75,14 @@ describe('useDebounce', () => {
 
     rerender({ value: 'second' });
 
-    act(() => { vi.advanceTimersByTime(499); });
+    act(() => {
+      vi.advanceTimersByTime(499);
+    });
     expect(result.current).toBe('first');
 
-    act(() => { vi.advanceTimersByTime(1); });
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
     expect(result.current).toBe('second');
   });
 });
