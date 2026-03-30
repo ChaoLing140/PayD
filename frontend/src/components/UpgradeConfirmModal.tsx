@@ -414,6 +414,20 @@ export default function UpgradeConfirmModal({
     void handleCancel();
   }
 
+  // ── Keyboard event handler for ESC key ───────────────────────────────────
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !['executing', 'simulating'].includes(modal.step)) {
+        e.preventDefault();
+        void handleCancel();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [modal.step, handleCancel]);
+
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (

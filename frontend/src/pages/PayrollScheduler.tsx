@@ -10,6 +10,7 @@ import { AccessibleDatePicker } from '../components/AccessibleDatePicker';
 import { AutosaveIndicator } from '../components/AutosaveIndicator';
 import { BulkPaymentStatusTracker } from '../components/BulkPaymentStatusTracker';
 import { CountdownTimer } from '../components/CountdownTimer';
+import { FormField } from '../components/FormField';
 import { SchedulingWizard } from '../components/SchedulingWizard';
 import { TransactionSimulationPanel } from '../components/TransactionSimulationPanel';
 import { useAutosave } from '../hooks/useAutosave';
@@ -29,6 +30,12 @@ interface PayrollFormState {
   frequency: 'weekly' | 'monthly';
   startDate: string;
   memo?: string;
+}
+
+interface PayrollFormErrors {
+  employeeName?: string;
+  amount?: string;
+  startDate?: string;
 }
 
 type SchedulingFrequency = 'weekly' | 'biweekly' | 'monthly';
@@ -166,6 +173,7 @@ export default function PayrollScheduler() {
     useNotification();
   const { socket, subscribeToTransaction, unsubscribeFromTransaction } = useSocket();
   const [formData, setFormData] = useState<PayrollFormState>(initialFormState);
+  const [formErrors, setFormErrors] = useState<PayrollFormErrors>({});
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [activeSchedule, setActiveSchedule] = useState<SchedulingConfig | null>(null);
@@ -252,6 +260,34 @@ export default function PayrollScheduler() {
       resetSimulation();
       setContractError(null);
     }
+    // Clear error for this field when user starts typing
+    if (formErrors[name as keyof PayrollFormErrors]) {
+      setFormErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const errors: PayrollFormErrors = {};
+
+    if (!formData.employeeName.trim()) {
+      errors.employeeName = 'Employee name is required';
+    }
+
+    if (!formData.amount.trim()) {
+      errors.amount = 'Amount is required';
+    } else {
+      const amount = parseFloat(formData.amount);
+      if (isNaN(amount) || amount <= 0) {
+        errors.amount = 'Amount must be a positive number';
+      }
+    }
+
+    if (!formData.startDate) {
+      errors.startDate = 'Start date is required';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleStartDateChange = (value: string) => {
@@ -286,12 +322,7 @@ export default function PayrollScheduler() {
   }, [socket, notifyPaymentSuccess]);
 
   const handleInitialize = async () => {
-    if (!formData.employeeName || !formData.amount) {
-      setContractError({
-        code: 'MISSING_FIELDS',
-        message: 'Missing required fields',
-        suggestedAction: 'Please provide employee name and amount.',
-      });
+    if (!validateForm()) {
       return;
     }
 
@@ -491,28 +522,36 @@ export default function PayrollScheduler() {
               className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 card glass noise"
             >
               <div className="md:col-span-2">
-                <InputComponent
+                <FormField
                   id="employeeName"
-                  fieldSize="md"
                   label={t('payroll.employeeName', 'Employee Name')}
-                  name="employeeName"
-                  value={formData.employeeName}
-                  onChange={handleChange}
-                  placeholder="e.g. Satoshi Nakamoto"
-                />
+                  required
+                  error={formErrors.employeeName}
+                >
+                  <InputComponent
+                    fieldSize="md"
+                    name="employeeName"
+                    value={formData.employeeName}
+                    onChange={handleChange}
+                    placeholder="e.g. Satoshi Nakamoto"
+                  />
+                </FormField>
               </div>
 
-              <div>
+              <FormField
+                id="amount"
+                label={t('payroll.amountLabel', 'Amount (USD equivalent)')}
+                required
+                error={formErrors.amount}
+              >
                 <InputComponent
-                  id="amount"
                   fieldSize="md"
-                  label={t('payroll.amountLabel', 'Amount (USD equivalent)')}
                   name="amount"
                   value={formData.amount}
                   onChange={handleChange}
                   placeholder="0.00"
                 />
-              </div>
+              </FormField>
 
               <div>
                 <SelectComponent
@@ -529,15 +568,22 @@ export default function PayrollScheduler() {
               </div>
 
               <div className="md:col-span-2">
-                <AccessibleDatePicker
+                <FormField
                   id="startDate"
                   label={t('payroll.commencementDate', 'Commencement Date')}
-                  value={formData.startDate}
-                  onChange={handleStartDateChange}
-                  minDate={formatLocalDateInput(new Date())}
-                  required={true}
+                  required
+                  error={formErrors.startDate}
                   helpText="Select the date when payroll will commence (must be today or later)"
-                />
+                >
+                  <AccessibleDatePicker
+                    id="startDate"
+                    label=""
+                    value={formData.startDate}
+                    onChange={handleStartDateChange}
+                    minDate={formatLocalDateInput(new Date())}
+                    required={true}
+                  />
+                </FormField>
               </div>
 
               <div className="md:col-span-2 pt-4">

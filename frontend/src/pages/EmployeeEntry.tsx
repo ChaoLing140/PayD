@@ -9,6 +9,7 @@ const SelectComponent = Select as unknown as React.FC<Record<string, unknown>>;
 
 import { AutosaveIndicator } from '../components/AutosaveIndicator';
 import { EmployeeList } from '../components/EmployeeList';
+import { FormField } from '../components/FormField';
 import { HelpLink } from '../components/HelpLink';
 import { WalletQRCode } from '../components/WalletQRCode';
 import { SUPPORTED_ASSETS } from '../config/assets';
@@ -21,6 +22,11 @@ interface EmployeeFormState {
   walletAddress: string;
   role: string;
   currency: string;
+}
+
+interface EmployeeFormErrors {
+  fullName?: string;
+  walletAddress?: string;
 }
 
 interface EmployeeItem {
@@ -83,6 +89,7 @@ export default function EmployeeEntry() {
   const [isAdding, setIsAdding] = useState(false);
   const [employees, setEmployees] = useState<EmployeeItem[]>(mockEmployees);
   const [formData, setFormData] = useState<EmployeeFormState>(initialFormState);
+  const [formErrors, setFormErrors] = useState<EmployeeFormErrors>({});
   const [notification, setNotification] = useState<{
     message: string;
     secretKey?: string;
@@ -107,14 +114,37 @@ export default function EmployeeEntry() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    // Clear error for this field when user starts typing
+    if (formErrors[name as keyof EmployeeFormErrors]) {
+      setFormErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
   };
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const validateForm = (): boolean => {
+    const errors: EmployeeFormErrors = {};
+
+    if (!formData.fullName.trim()) {
+      errors.fullName = 'Full name is required';
+    }
+
+    if (formData.walletAddress && !/^G[A-Z0-9]{55}$/.test(formData.walletAddress)) {
+      errors.walletAddress = 'Invalid Stellar wallet address format';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
 
     let generatedWallet: { publicKey: string; secretKey: string } | undefined;
     if (!formData.walletAddress) {
@@ -238,26 +268,36 @@ export default function EmployeeEntry() {
             onSubmit={handleSubmit}
             style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
           >
-            <InputComponent
+            <FormField
               id="fullName"
-              fieldSize="md"
               label="Full Name"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              placeholder="Jane Smith"
               required
-            />
-            <InputComponent
+              error={formErrors.fullName}
+            >
+              <InputComponent
+                fieldSize="md"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleChange}
+                placeholder="Jane Smith"
+              />
+            </FormField>
+
+            <FormField
               id="walletAddress"
-              fieldSize="md"
               label="Stellar Wallet Address (Optional)"
-              note="If no wallet is provided, a claimable balance will be created using a new wallet generated for them."
-              name="walletAddress"
-              value={formData.walletAddress}
-              onChange={handleChange}
-              placeholder="Leave blank to generate a wallet"
-            />
+              error={formErrors.walletAddress}
+              helpText="If no wallet is provided, a claimable balance will be created using a new wallet generated for them."
+            >
+              <InputComponent
+                fieldSize="md"
+                name="walletAddress"
+                value={formData.walletAddress}
+                onChange={handleChange}
+                placeholder="Leave blank to generate a wallet"
+              />
+            </FormField>
+
             <div className="flex items-center gap-2">
               <SelectComponent
                 id="currency"
