@@ -19,6 +19,8 @@ import { LanguageSelector } from './LanguageSelector';
 import { ThemeToggle } from './ThemeToggle';
 import ErrorBoundary from './ErrorBoundary';
 import ErrorFallback from './ErrorFallback';
+import { Breadcrumb } from './Breadcrumb';
+import { NetworkSwitcher } from './NetworkSwitcher';
 import { useNativeXlmBalance } from '../hooks/useNativeXlmBalance';
 import { useWallet } from '../hooks/useWallet';
 
@@ -156,9 +158,7 @@ const EmployerLayout: React.FC = () => {
               <Heading as="h1" size="md" weight="bold" addlClassName="truncate tracking-tight">
                 {ORG_NAME}
               </Heading>
-              <Text as="p" size="xs" addlClassName="text-[var(--muted)] truncate">
-                Employer dashboard
-              </Text>
+              <Breadcrumb />
             </div>
           </div>
 
@@ -179,6 +179,7 @@ const EmployerLayout: React.FC = () => {
                 {!address ? 'Connect wallet' : balanceLoading ? '…' : formatXlm(xlmBalance ?? null)}
               </span>
             </div>
+            <NetworkSwitcher />
             <LanguageSelector />
             <ThemeToggle />
             <ConnectAccount />
