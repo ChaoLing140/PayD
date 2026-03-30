@@ -296,11 +296,31 @@ const AppNav: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile dropdown menu */}
+      {/* Mobile drawer — rendered as a fixed overlay so it never clips inside a flex ancestor */}
       {mobileOpen && (
-        <div className="lg:hidden absolute left-0 right-0 top-full z-40 bg-white shadow-lg border-t">
-          <div className="px-4 py-3 flex flex-col gap-2">{navLinks}</div>
-        </div>
+        <>
+          {/* Backdrop */}
+          <div
+            className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+            aria-hidden="true"
+            onClick={() => setMobileOpen(false)}
+          />
+          {/* Drawer panel */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            className="lg:hidden fixed left-0 right-0 top-(--header-h) z-50 border-b shadow-xl"
+            style={{
+              background: 'var(--surface)',
+              borderColor: 'var(--border-hi)',
+            }}
+          >
+            <nav className="flex flex-col gap-1 px-4 py-4 max-h-[calc(100dvh-var(--header-h))] overflow-y-auto">
+              {navLinks}
+            </nav>
+          </div>
+        </>
       )}
 
       {isProfileEditorOpen && (

@@ -23,7 +23,7 @@ const AppLayout: React.FC = () => {
     >
       {/* Header */}
       <header
-        className="fixed top-0 left-0 right-0 z-50 h-(--header-h) items-center px-16 flex justify-between backdrop-blur-[20px] backdrop-saturate-180 border-b"
+        className="fixed top-0 left-0 right-0 z-50 h-(--header-h) items-center px-4 sm:px-8 lg:px-16 flex justify-between backdrop-blur-[20px] backdrop-saturate-180 border-b"
         style={{
           background: 'color-mix(in srgb, var(--bg) 85%, transparent)',
           borderColor: 'var(--border-hi)',
