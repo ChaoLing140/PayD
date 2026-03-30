@@ -266,7 +266,10 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({
             </tr>
           ) : (
             sortedEmployees.map((employee) => (
-              <tr key={employee.id} className="cursor-pointer transition">
+              <tr
+                key={employee.id}
+                className="cursor-pointer transition-colors hover:bg-white/5"
+              >
                 <td className="p-6">
                   <div className="flex items-center gap-3">
                     <Avatar
