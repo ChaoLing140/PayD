@@ -42,7 +42,7 @@ export function useWalletManager() {
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const [walletOptions, setWalletOptions] = useState<SelectableWallet[]>([]);
   const kitRef = useRef<StellarWalletsKit | null>(null);
-  
+
   const { notifyWalletEvent } = useNotification();
 
   useEffect(() => {
@@ -104,45 +104,48 @@ export function useWalletManager() {
     return options;
   }, []);
 
-  const connectWithWallet = useCallback(async (selectedWalletId: string): Promise<string | null> => {
-    const kit = kitRef.current;
-    if (!kit) return null;
+  const connectWithWallet = useCallback(
+    async (selectedWalletId: string): Promise<string | null> => {
+      const kit = kitRef.current;
+      if (!kit) return null;
 
-    setIsConnecting(true);
-    try {
-      kit.setWallet(selectedWalletId);
+      setIsConnecting(true);
+      try {
+        kit.setWallet(selectedWalletId);
 
-      let timeoutId: ReturnType<typeof setTimeout>;
-      const timeoutPromise = new Promise<{ address: string }>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('Connection timed out after 15 seconds.')), 15000);
-      });
+        let timeoutId: ReturnType<typeof setTimeout>;
+        const timeoutPromise = new Promise<{ address: string }>((_, reject) => {
+          timeoutId = setTimeout(
+            () => reject(new Error('Connection timed out after 15 seconds.')),
+            15000
+          );
+        });
 
-      const { address: newAddress } = await Promise.race([
-        kit.getAddress(),
-        timeoutPromise,
-      ]);
-      clearTimeout(timeoutId!);
+        const { address: newAddress } = await Promise.race([kit.getAddress(), timeoutPromise]);
+        clearTimeout(timeoutId!);
 
-      setAddress(newAddress);
-      setWalletName(selectedWalletId);
-      localStorage.setItem(LAST_WALLET_STORAGE_KEY, selectedWalletId);
-      notifyWalletEvent(
-        'connected',
-        `${newAddress.slice(0, 6)}...${newAddress.slice(-4)} via ${selectedWalletId}`
-      );
-      return newAddress;
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
-      notifyWalletEvent(
-        'connection_failed',
-        error instanceof Error ? error.message : 'Please try again.'
-      );
-      return null;
-    } finally {
-      setIsConnecting(false);
-      setWalletModalOpen(false);
-    }
-  }, [notifyWalletEvent]);
+        setAddress(newAddress);
+        setWalletName(selectedWalletId);
+        localStorage.setItem(LAST_WALLET_STORAGE_KEY, selectedWalletId);
+        notifyWalletEvent(
+          'connected',
+          `${newAddress.slice(0, 6)}...${newAddress.slice(-4)} via ${selectedWalletId}`
+        );
+        return newAddress;
+      } catch (error) {
+        console.error('Failed to connect wallet:', error);
+        notifyWalletEvent(
+          'connection_failed',
+          error instanceof Error ? error.message : 'Please try again.'
+        );
+        return null;
+      } finally {
+        setIsConnecting(false);
+        setWalletModalOpen(false);
+      }
+    },
+    [notifyWalletEvent]
+  );
 
   const connect = useCallback(async (): Promise<string | null> => {
     const options = await loadWalletOptions();
