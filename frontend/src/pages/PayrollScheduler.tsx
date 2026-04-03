@@ -121,7 +121,6 @@ function computeNextRunDate(config: SchedulingConfig, from: Date = new Date()): 
   return first;
 }
 
-
 interface PendingClaim {
   id: string;
   employeeName: string;
