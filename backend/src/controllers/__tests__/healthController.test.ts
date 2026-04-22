@@ -22,6 +22,7 @@ jest.mock('ioredis', () => {
 });
 const app = express();
 app.get('/api/health', HealthController.getHealthStatus);
+app.get('/api/v1/health', HealthController.getHealthStatus);
 app.get('/health', HealthController.getHealthStatus);
 
 describe('HealthController health endpoints', () => {
@@ -58,6 +59,18 @@ describe('HealthController health endpoints', () => {
     redisClient.ping.mockResolvedValueOnce('PONG');
 
     const response = await request(app).get('/health');
+
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe('ok');
+    expect(response.body.dependencies.database.status).toBe('connected');
+    expect(response.body.dependencies.redis.status).toBe('connected');
+  });
+
+  it('returns 200 OK from /api/v1/health when database and redis are healthy', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    redisClient.ping.mockResolvedValueOnce('PONG');
+
+    const response = await request(app).get('/api/v1/health');
 
     expect(response.status).toBe(200);
     expect(response.body.status).toBe('ok');

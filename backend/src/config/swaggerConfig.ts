@@ -77,6 +77,18 @@ const options: swaggerJsdoc.Options = {
           },
         },
       },
+      '/api/v1/health': {
+        get: {
+          tags: ['System'],
+          summary: 'Get API v1 health status',
+          security: [],
+          responses: {
+            '200': {
+              description: 'Success',
+            },
+          },
+        },
+      },
       '/health': {
         get: {
           tags: ['System'],
@@ -93,6 +105,18 @@ const options: swaggerJsdoc.Options = {
         get: {
           tags: ['System'],
           summary: 'Get the generated OpenAPI specification',
+          security: [],
+          responses: {
+            '200': {
+              description: 'Success',
+            },
+          },
+        },
+      },
+      '/api/v1/openapi.json': {
+        get: {
+          tags: ['System'],
+          summary: 'Get the generated OpenAPI specification (v1 endpoint)',
           security: [],
           responses: {
             '200': {
