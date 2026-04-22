@@ -157,10 +157,7 @@ export const WalletProvider: React.FC<{
       const message =
         error instanceof Error ? error.message : 'Unable to connect to the selected wallet.';
       setConnectionError(message);
-      notifyWalletEvent(
-        'connection_failed',
-        message
-      );
+      notifyWalletEvent('connection_failed', message);
       return null;
     } finally {
       setIsConnecting(false);
@@ -255,7 +252,12 @@ export const WalletProvider: React.FC<{
                 >
                   <div className="flex items-center gap-3">
                     {wallet.icon ? (
-                      <img src={wallet.icon} alt={wallet.name} className="h-6 w-6 rounded" />
+                      <img
+                        src={wallet.icon}
+                        alt={wallet.name}
+                        loading="lazy"
+                        className="h-6 w-6 rounded"
+                      />
                     ) : (
                       <div className="h-6 w-6 rounded bg-white/10" />
                     )}
