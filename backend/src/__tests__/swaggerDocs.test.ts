@@ -5,9 +5,12 @@ import { swaggerSpec } from '../config/swaggerConfig.js';
 describe('Swagger/OpenAPI documentation', () => {
   it('serves the generated OpenAPI specification', async () => {
     const response = await request(app).get('/api/openapi.json');
+    const v1Response = await request(app).get('/api/v1/openapi.json');
 
     expect(response.status).toBe(200);
+    expect(v1Response.status).toBe(200);
     expect(response.body.openapi).toBe('3.0.0');
+    expect(v1Response.body.openapi).toBe('3.0.0');
     expect(response.body.paths['/api/v1/auth/register']?.post).toBeDefined();
     expect(response.body.paths['/api/v1/payments/pathfind']?.post).toBeDefined();
     expect(response.body.paths['/metrics']?.get).toBeDefined();

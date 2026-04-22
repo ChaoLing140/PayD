@@ -101,6 +101,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/api/openapi.json', (_req, res) => {
   res.json(swaggerSpec);
 });
+app.get('/api/v1/openapi.json', (_req, res) => {
+  res.json(swaggerSpec);
+});
 
 // Export openapi.json for frontend
 fs.writeFileSync(path.join(__appDirname, '../openapi.json'), JSON.stringify(swaggerSpec, null, 2));
@@ -117,7 +120,11 @@ app.get('/api', (_req, res) => {
     name: 'PayD API',
     currentVersion: 'v1',
     supportedVersions: ['v1'],
-    endpoints: { v1: '/api/v1' },
+    endpoints: {
+      v1: '/api/v1',
+      health: '/api/v1/health',
+      openapi: '/api/v1/openapi.json',
+    },
   });
 });
 
@@ -137,6 +144,7 @@ app.use('/api', apiRateLimit(), contractRoutes);
 app.use('/api/stellar-throttling', apiRateLimit(), stellarThrottlingRoutes);
 
 // Health check endpoints
+app.get('/api/v1/health', HealthController.getHealthStatus);
 app.get('/api/health', HealthController.getHealthStatus);
 app.get('/health', HealthController.getHealthStatus);
 
