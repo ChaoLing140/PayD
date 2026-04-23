@@ -589,12 +589,12 @@ impl BulkPaymentContract {
     ) -> Result<(), ContractError> {
         // Resolve sender and token from the batch record.
         let batch_key = DataKey::Batch(batch_id);
-        let batch: BatchRecord = env.storage().temporary().get(&batch_key)
+        let batch: BatchRecord = env.storage().persistent().get(&batch_key)
             .ok_or(ContractError::BatchNotFound)?;
 
         // Load the individual payment entry.
         let entry_key = DataKey::PaymentEntry(batch_id, payment_index);
-        let mut entry: PaymentEntry = env.storage().temporary().get(&entry_key)
+        let mut entry: PaymentEntry = env.storage().persistent().get(&entry_key)
             .ok_or(ContractError::PaymentNotFound)?;
 
         // Guard: status must be Failed — Refunded and Sent/Pending are errors.
@@ -614,9 +614,9 @@ impl BulkPaymentContract {
 
         // Transition status to Refunded and persist.
         entry.status = PaymentStatus::Refunded;
-        env.storage().temporary().set(&entry_key, &entry);
-        env.storage().temporary().extend_ttl(
-            &entry_key, TEMPORARY_TTL_THRESHOLD, TEMPORARY_TTL_EXTEND_TO,
+        env.storage().persistent().set(&entry_key, &entry);
+        env.storage().persistent().extend_ttl(
+            &entry_key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO,
         );
 
         env.events().publish(
@@ -634,7 +634,7 @@ impl BulkPaymentContract {
         payment_index: u32,
     ) -> Result<PaymentEntry, ContractError> {
         let key = DataKey::PaymentEntry(batch_id, payment_index);
-        let entry: PaymentEntry = env.storage().temporary().get(&key)
+        let entry: PaymentEntry = env.storage().persistent().get(&key)
             .ok_or(ContractError::PaymentNotFound)?;
         // Reading state should not modify TTL; extend only on write
         Ok(entry)
@@ -705,7 +705,7 @@ impl BulkPaymentContract {
         Self::record_usage(env, &sender, total);
 
         let batch_id = Self::next_batch_id(env);
-        env.storage().temporary().set(&DataKey::Batch(batch_id), &BatchRecord {
+        env.storage().persistent().set(&DataKey::Batch(batch_id), &BatchRecord {
             sender: sender.clone(),
             token:  token.clone(),
             total_sent:    total,
@@ -713,8 +713,8 @@ impl BulkPaymentContract {
             fail_count:    0,
             status:        symbol_short!("completed"),
         });
-        env.storage().temporary().extend_ttl(
-            &DataKey::Batch(batch_id), TEMPORARY_TTL_THRESHOLD, TEMPORARY_TTL_EXTEND_TO,
+        env.storage().persistent().extend_ttl(
+            &DataKey::Batch(batch_id), PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO,
         );
 
         for (index, op) in payments.iter().enumerate() {
@@ -844,7 +844,7 @@ impl BulkPaymentContract {
                      else if success_count == 0 { symbol_short!("rollbck") }
                      else                       { symbol_short!("partial") };
 
-        env.storage().temporary().set(&DataKey::Batch(batch_id), &BatchRecord {
+        env.storage().persistent().set(&DataKey::Batch(batch_id), &BatchRecord {
             sender: sender.clone(),
             token:  token.clone(),
             total_sent,
@@ -852,8 +852,8 @@ impl BulkPaymentContract {
             fail_count,
             status,
         });
-        env.storage().temporary().extend_ttl(
-            &DataKey::Batch(batch_id), TEMPORARY_TTL_THRESHOLD, TEMPORARY_TTL_EXTEND_TO,
+        env.storage().persistent().extend_ttl(
+            &DataKey::Batch(batch_id), PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO,
         );
 
         env.events().publish(
@@ -874,14 +874,14 @@ impl BulkPaymentContract {
         status: PaymentStatus,
     ) {
         let key = DataKey::PaymentEntry(batch_id, payment_index);
-        env.storage().temporary().set(&key, &PaymentEntry {
+        env.storage().persistent().set(&key, &PaymentEntry {
             recipient: op.recipient.clone(),
             amount:    op.amount,
             category:  op.category.clone(),
             status,
         });
-        env.storage().temporary().extend_ttl(
-            &key, TEMPORARY_TTL_THRESHOLD, TEMPORARY_TTL_EXTEND_TO,
+        env.storage().persistent().extend_ttl(
+            &key, PERSISTENT_TTL_THRESHOLD, PERSISTENT_TTL_EXTEND_TO,
         );
     }
 

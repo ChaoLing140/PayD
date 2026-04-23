@@ -62,7 +62,7 @@ impl RevenueSplitContract {
             panic!("Shares must sum to 10000 basis points");
         }
 
-        env.storage().instance().set(&DataKey::Admin, &admin);
+        env.storage().persistent().set(&DataKey::Admin, &admin);
         
         let recipient_key = DataKey::Recipients;
         env.storage().persistent().set(&recipient_key, &shares);
