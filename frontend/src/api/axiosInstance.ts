@@ -1,6 +1,10 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { toast } from 'sonner';
 
+type ApiErrorPayload = {
+  message?: string;
+};
+
 /**
  * Centralized Axios instance for PayD frontend.
  * Provides consistent error handling and base configuration.
@@ -35,8 +39,11 @@ axiosInstance.interceptors.response.use(
   },
   (error: AxiosError) => {
     const status = error.response?.status;
-    const data = error.response?.data as any;
-    const message = data?.message || error.message || 'An unexpected error occurred';
+    const data = error.response?.data;
+    const message =
+      typeof data === 'object' && data !== null && 'message' in data
+        ? (data as ApiErrorPayload).message || error.message || 'An unexpected error occurred'
+        : error.message || 'An unexpected error occurred';
 
     // Handle specific error codes
     switch (status) {

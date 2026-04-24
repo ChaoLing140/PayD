@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   Activity, 
@@ -17,12 +17,20 @@ import { Button } from '@stellar/design-system';
 import axiosInstance from '../../api/axiosInstance';
 import { toast } from 'sonner';
 
+type JsonRecord = Record<string, unknown>;
+
+interface WebhookLogsResponse {
+  data?: WebhookLog[];
+}
+
+const LOADING_ROW_KEYS = ['one', 'two', 'three', 'four', 'five'] as const;
+
 interface WebhookLog {
   id: number;
   subscriptionId: number;
   eventType: string;
-  payload: any;
-  requestHeaders: any;
+  payload: JsonRecord | string | null;
+  requestHeaders: JsonRecord | null;
   responseStatusCode: number | null;
   responseBody: string | null;
   errorMessage: string | null;
@@ -38,10 +46,10 @@ const WebhookLogs: React.FC = () => {
   const [selectedLog, setSelectedLog] = useState<WebhookLog | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      const response = await axiosInstance.get('/api/webhooks/logs');
+      const response = await axiosInstance.get<WebhookLogsResponse>('/api/webhooks/logs');
       setLogs(response.data.data || []);
     } catch (error) {
       console.error('Failed to fetch webhook logs:', error);
@@ -50,13 +58,15 @@ const WebhookLogs: React.FC = () => {
       setLoading(false);
       setIsRefreshing(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
-    fetchLogs();
-    const interval = setInterval(fetchLogs, 30000); // Auto refresh every 30s
+    void fetchLogs();
+    const interval = setInterval(() => {
+      void fetchLogs();
+    }, 30000); // Auto refresh every 30s
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchLogs]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -91,10 +101,10 @@ const WebhookLogs: React.FC = () => {
     }
   };
 
-  const formatJSON = (data: any) => {
+  const formatJSON = (data: unknown) => {
     try {
       return JSON.stringify(typeof data === 'string' ? JSON.parse(data) : data, null, 2);
-    } catch (e) {
+    } catch {
       return String(data);
     }
   };
@@ -115,7 +125,9 @@ const WebhookLogs: React.FC = () => {
         <div className="flex items-center gap-2">
           <Button
             variant="secondary"
-            onClick={fetchLogs}
+            onClick={() => {
+              void fetchLogs();
+            }}
             disabled={isRefreshing}
             className="flex items-center gap-2"
           >
@@ -156,8 +168,8 @@ const WebhookLogs: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {loading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <tr key={i} className="animate-pulse">
+                    LOADING_ROW_KEYS.map((key) => (
+                      <tr key={`loading-row-${key}`} className="animate-pulse">
                         <td colSpan={4} className="px-6 py-8 h-16 bg-white/[0.01]" />
                       </tr>
                     ))

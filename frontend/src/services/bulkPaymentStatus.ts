@@ -64,14 +64,6 @@ export interface OnChainBatchState {
   items: OnChainPaymentStatus[];
 }
 
-interface PayrollRunsListResponse {
-  success: boolean;
-  data: {
-    data: PayrollRunRecord[];
-    total: number;
-  };
-}
-
 interface PayrollRunSummaryResponse {
   success: boolean;
   data: PayrollRunSummary;

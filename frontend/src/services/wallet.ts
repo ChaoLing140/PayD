@@ -1,5 +1,4 @@
-import { signTransaction } from '@stellar-freighter/api';
-import { Keypair, Transaction, Networks, Memo } from '@stellar/stellar-sdk';
+import { Keypair, Transaction } from '@stellar/stellar-sdk';
 
 export interface WalletInfo {
   address: string;
@@ -13,9 +12,40 @@ export interface SignTransactionOptions {
   address?: string;
 }
 
+type FreighterApi = {
+  getPublicKey: () => Promise<string>;
+  signTransaction: (
+    transactionXdr: string,
+    opts: { network: 'testnet' | 'public' }
+  ) => Promise<string>;
+};
+
+function getFreighterApi(): FreighterApi | null {
+  if (typeof window === 'undefined') return null;
+
+  const candidate = (window as Window & { freighterApi?: unknown }).freighterApi;
+  if (
+    candidate &&
+    typeof candidate === 'object' &&
+    'getPublicKey' in candidate &&
+    typeof candidate.getPublicKey === 'function' &&
+    'signTransaction' in candidate &&
+    typeof candidate.signTransaction === 'function'
+  ) {
+    return candidate as FreighterApi;
+  }
+
+  return null;
+}
+
 export async function getWalletInfo(): Promise<WalletInfo | null> {
   try {
-    const result = await window.freighterApi.getPublicKey();
+    const freighter = getFreighterApi();
+    if (!freighter) {
+      return null;
+    }
+
+    const result = await freighter.getPublicKey();
     if (result) {
       return {
         address: result,
@@ -34,19 +64,24 @@ export async function signTransactionWithWallet(
   options: SignTransactionOptions
 ): Promise<string> {
   const { transactionXdr, network } = options;
-  return signTransaction(transactionXdr, { network });
+  const freighter = getFreighterApi();
+  if (!freighter) {
+    throw new Error('Freighter API is not available');
+  }
+
+  const signed: unknown = await freighter.signTransaction(transactionXdr, { network });
+  if (typeof signed !== 'string') {
+    throw new Error('Wallet returned an invalid signed transaction response');
+  }
+  return signed;
 }
 
-export function parseTransactionXdr(xdr: string, networkPassphrase?: string): Transaction {
-  const tx = Transaction.fromEnvelopeXDR(xdr, networkPassphrase || Networks.TESTNET);
-  return tx;
-}
-
-export async function signTransactionObject(
+export function signTransactionObject(
   keypair: Keypair,
   transaction: Transaction
-): Promise<Transaction> {
-  transaction.sign(keypair);
+): Transaction {
+  const signable = transaction as Transaction & { sign: (kp: Keypair) => void };
+  signable.sign(keypair);
   return transaction;
 }
 

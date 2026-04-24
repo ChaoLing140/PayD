@@ -1,6 +1,7 @@
 import { Button, Card, Heading, Input, Select, Text } from '@stellar/design-system';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import axios, { AxiosError } from 'axios';
 
 // Type assertion for Stellar components to work around library typing issues
 const InputComponent = Input as unknown as React.FC<Record<string, unknown>>;
@@ -24,6 +25,7 @@ import { IssuerMultisigBanner } from '../components/IssuerMultisigBanner';
 import { HelpLink } from '../components/HelpLink';
 import { parseContractError, type ContractErrorDetail } from '../utils/contractErrorParser';
 import { formatDate } from '../utils/dateHelpers';
+import axiosInstance from '../api/axiosInstance';
 
 interface PayrollFormState {
   employeeName: string;
@@ -374,10 +376,14 @@ export default function PayrollScheduler() {
             status: 'created',
           },
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const fallback = 'Payment was created, but webhook test trigger failed.';
+        const errorMessage = axios.isAxiosError(err)
+          ? ((err as AxiosError<{ error?: string }>).response?.data?.error ?? fallback)
+          : fallback;
         notifyApiError(
           'Webhook trigger failed',
-          err.response?.data?.error || 'Payment was created, but webhook test trigger failed.'
+          errorMessage
         );
         console.warn('Webhook trigger error:', err);
       }
