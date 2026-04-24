@@ -9,7 +9,13 @@
 //! - Security and edge cases
 
 use super::*;
-use soroban_sdk::{testutils::Address as _, Address, Env, String as SorobanString, token};
+use soroban_sdk::{
+    testutils::{Address as _, Ledger},
+    token,
+    Address,
+    Env,
+    String as SorobanString,
+};
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── TEST HELPERS ──────────────────────────────────────────────────────────────
@@ -115,7 +121,7 @@ fn test_escrow_holds_funds_until_completion() {
     assert_eq!(token_client.balance(&contract_address), 15_000);
     
     // Check payment status
-    let payment = client.get_payment(&payment_id);
+    let payment = client.get_payment(&payment_id).unwrap();
     assert_eq!(payment.status, symbol_short!("pending"));
     assert_eq!(payment.amount, 15_000);
 }
@@ -147,7 +153,7 @@ fn test_complete_payment_releases_funds() {
     assert_eq!(token_client.balance(&contract_address), 0);
     
     // Status updated
-    let payment = client.get_payment(&payment_id);
+    let payment = client.get_payment(&payment_id).unwrap();
     assert_eq!(payment.status, symbol_short!("complete"));
 }
 
@@ -212,7 +218,7 @@ fn test_fail_payment_refunds_sender() {
     assert_eq!(token_client.balance(&contract_address), 0);
     
     // Status updated
-    let payment = client.get_payment(&payment_id);
+    let payment = client.get_payment(&payment_id).unwrap();
     assert_eq!(payment.status, symbol_short!("failed"));
 }
 
@@ -258,7 +264,7 @@ fn test_partial_refund_scenario() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 #[test]
-#[should_panic(expected = "Operation already processed in this ledger sequence")]
+#[should_panic(expected = "Payment already initiated in this ledger sequence")]
 fn test_duplicate_payment_same_ledger_panics() {
     let (env, _, sender, token_contract, _, _, client, _) = setup_payment_escrow();
     
@@ -351,7 +357,8 @@ fn test_escrow_balance_invariant() {
 
 #[test]
 fn test_large_payment_amount() {
-    let (env, _, sender, token_contract, token_client, token_admin_client, client, _) = setup_payment_escrow();
+    let (env, _, sender, token_contract, _token_client, token_admin_client, client, _) =
+        setup_payment_escrow();
     
     let large_amount = 500_000_000;
     token_admin_client.mint(&sender, &large_amount);
@@ -363,7 +370,7 @@ fn test_large_payment_amount() {
         &SorobanString::from_str(&env, "anchor"),
     );
     
-    let payment = client.get_payment(&payment_id);
+    let payment = client.get_payment(&payment_id).unwrap();
     assert_eq!(payment.amount, large_amount);
 }
 
@@ -377,7 +384,7 @@ fn test_payment_count_accuracy() {
         env.ledger().set_sequence_number(i * 10);
         client.initiate_payment(
             &sender, &1_000, &token_contract,
-            &SorobanString::from_str(&env, &format!("rec-{}", i)),
+            &SorobanString::from_str(&env, "rec"),
             &SorobanString::from_str(&env, "USD"),
             &SorobanString::from_str(&env, "anc"),
         );
@@ -393,22 +400,20 @@ fn test_zero_balance_after_all_payments_processed() {
     let recipient = Address::generate(&env);
     
     // Create and process multiple payments
-    let mut payment_ids = vec![];
     for i in 1..=10 {
         env.ledger().set_sequence_number(i * 10);
-        let id = client.initiate_payment(
+        client.initiate_payment(
             &sender, &1_000, &token_contract,
-            &SorobanString::from_str(&env, &format!("rec-{}", i)),
+            &SorobanString::from_str(&env, "rec"),
             &SorobanString::from_str(&env, "USD"),
             &SorobanString::from_str(&env, "anc"),
         );
-        payment_ids.push(id);
     }
     
     // Complete all payments
-    for (idx, id) in payment_ids.iter().enumerate() {
+    for (idx, payment_id) in (1..=10_u64).enumerate() {
         env.ledger().set_sequence_number(100 + idx as u32);
-        client.complete_payment(&admin, id, &recipient);
+        client.complete_payment(&admin, &payment_id, &recipient);
     }
     
     // Contract should be empty

@@ -8,19 +8,16 @@ export const CountdownTimer = ({ targetDate }: { targetDate: Date | null }) => {
     seconds: 0,
   });
 
-  // initializer
-
   useEffect(() => {
     if (!targetDate) return;
 
-    const interval = setInterval(() => {
+    const updateTimeLeft = () => {
       const now = new Date().getTime();
       const distance = targetDate.getTime() - now;
 
       if (distance < 0) {
-        clearInterval(interval);
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-        return;
+        return false;
       }
 
       setTimeLeft({
@@ -29,6 +26,16 @@ export const CountdownTimer = ({ targetDate }: { targetDate: Date | null }) => {
         minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
         seconds: Math.floor((distance % (1000 * 60)) / 1000),
       });
+
+      return true;
+    };
+
+    if (!updateTimeLeft()) return;
+
+    const interval = setInterval(() => {
+      if (!updateTimeLeft()) {
+        clearInterval(interval);
+      }
     }, 1000);
 
     return () => clearInterval(interval);
@@ -36,33 +43,29 @@ export const CountdownTimer = ({ targetDate }: { targetDate: Date | null }) => {
 
   if (!targetDate) return null;
 
+  const segments = [
+    { key: 'days', label: 'Days', value: String(timeLeft.days) },
+    { key: 'hours', label: 'Hrs', value: timeLeft.hours.toString().padStart(2, '0') },
+    { key: 'minutes', label: 'Min', value: timeLeft.minutes.toString().padStart(2, '0') },
+    { key: 'seconds', label: 'Sec', value: timeLeft.seconds.toString().padStart(2, '0') },
+  ];
+
   return (
-    <div className="flex items-center gap-4">
-      <div className="flex flex-col items-center">
-        <span className="text-2xl font-mono font-black text-accent">{timeLeft.days}</span>
-        <span className="text-[10px] uppercase tracking-widest text-muted">Days</span>
-      </div>
-      <span className="text-muted font-bold -mt-4">:</span>
-      <div className="flex flex-col items-center">
-        <span className="text-2xl font-mono font-black text-accent">
-          {timeLeft.hours.toString().padStart(2, '0')}
-        </span>
-        <span className="text-[10px] uppercase tracking-widest text-muted">Hrs</span>
-      </div>
-      <span className="text-muted font-bold -mt-4">:</span>
-      <div className="flex flex-col items-center">
-        <span className="text-2xl font-mono font-black text-accent">
-          {timeLeft.minutes.toString().padStart(2, '0')}
-        </span>
-        <span className="text-[10px] uppercase tracking-widest text-muted">Min</span>
-      </div>
-      <span className="text-muted font-bold -mt-4">:</span>
-      <div className="flex flex-col items-center">
-        <span className="text-2xl font-mono font-black text-accent">
-          {timeLeft.seconds.toString().padStart(2, '0')}
-        </span>
-        <span className="text-[10px] uppercase tracking-widest text-muted">Sec</span>
-      </div>
+    <div
+      className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center sm:gap-4"
+      role="timer"
+      aria-live="polite"
+      aria-label="Time remaining until the next scheduled payroll run"
+    >
+      {segments.map((segment) => (
+        <div
+          key={segment.key}
+          className="flex min-w-[4.5rem] flex-col items-center rounded-xl border border-hi bg-black/15 px-3 py-2"
+        >
+          <span className="text-2xl font-mono font-black text-accent">{segment.value}</span>
+          <span className="text-[10px] uppercase tracking-widest text-muted">{segment.label}</span>
+        </div>
+      ))}
     </div>
   );
 };
