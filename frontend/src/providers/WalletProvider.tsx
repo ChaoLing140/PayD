@@ -27,11 +27,17 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const connectWithWallet = async (selectedWalletId: string): Promise<string | null> => {
     setConnectionError(null);
-    const result = await baseConnectWithWallet(selectedWalletId);
-    if (result === null) {
-      setConnectionError('Unable to connect to the selected wallet. Please try again.');
+    try {
+      const result = await baseConnectWithWallet(selectedWalletId);
+      if (result === null) {
+        setConnectionError('Unable to connect to the selected wallet. Please try again.');
+      }
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Connection failed';
+      setConnectionError(errorMessage);
+      return null;
     }
-    return result;
   };
 
   return (
