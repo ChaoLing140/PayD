@@ -101,7 +101,17 @@ impl RevenueSplitContract {
         Self::bump_core_ttl(&env);
     }
 
-    /// Distributes a token amount from a sender to the configured recipients.
+    /// Distributes a specific token amount from a sender to the listed recipients based on their shares.
+    ///
+    /// ### Algorithm: Basis Points Distribution
+    /// - Each recipient receives a portion calculated as: `(amount * basis_points) / 10000`.
+    /// - **Precision Management**: To ensure 100% of the funds are distributed and avoid 
+    ///   "dust" remaining in the sender's account due to rounding, the final recipient 
+    ///   in the list automatically absorbs any remainders.
+    ///
+    /// ### Requirements
+    /// - `from` must authorize the transaction.
+    /// - Must be the only distribution in this ledger (Replay protection).
     pub fn distribute(env: Env, token: Address, from: Address, amount: i128) {
         if amount <= 0 {
             return;
@@ -129,7 +139,13 @@ impl RevenueSplitContract {
             .unwrap_or(0)
     }
 
-    /// Ensures a distribution has not already been executed in the current ledger.
+    /// Ensures a distribution has not already been executed in the current ledger
+    /// sequence, preventing replay attacks.
+    ///
+    /// This mechanism uses the unique ledger sequence provided by the Soroban environment 
+    /// to ensure that the `distribute` function cannot be called more than once per 
+    /// ledger for this specific contract instance. This is a critical security 
+    /// measure for deterministic payout logic.
     fn require_unique_ledger(env: &Env) {
         let current_ledger = env.ledger().sequence();
         let last_ledger: u32 = env
@@ -216,6 +232,13 @@ impl RevenueSplitContract {
         );
     }
 
+    /// Internal helper to calculate the distribution of an amount across recipients.
+    ///
+    /// ### Algorithm: Basis Points Distribution
+    /// - Each recipient receives a portion calculated as: `(amount * basis_points) / 10000`.
+    /// - **Precision Management**: To ensure 100% of the funds are distributed and avoid 
+    ///   "dust" remaining in the sender's account due to rounding, the final recipient 
+    ///   in the list automatically absorbs any remainders (`amount - amount_distributed`).
     fn build_distribution_preview(
         env: &Env,
         shares: &Vec<RecipientShare>,
