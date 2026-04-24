@@ -159,7 +159,44 @@ impl CrossAssetPaymentContract {
         }
         record
     }
+
+    // ── Private helpers ───────────────────────────────────────────────────
+
+    fn require_admin(env: &Env) {
+        let admin: Address = env.storage().persistent().get(&DataKey::Admin).expect("Not initialized");
+        admin.require_auth();
+    }
+
+    fn require_unique_ledger(env: &Env, sender: &Address) {
+        let current_ledger = env.ledger().sequence();
+        let key = DataKey::LastPaymentLedger(sender.clone());
+        let last_ledger: u32 = env.storage().persistent().get(&key).unwrap_or(0);
+        if last_ledger == current_ledger && current_ledger != 0 {
+            panic!("Payment already initiated in this ledger sequence");
+        }
+        env.storage().persistent().set(&key, &current_ledger);
+        env.storage().persistent().extend_ttl(
+            &key,
+            PERSISTENT_TTL_THRESHOLD,
+            PERSISTENT_TTL_EXTEND_TO,
+        );
+    }
+
+    fn bump_core_ttl(env: &Env) {
+        for key in [DataKey::Admin, DataKey::PaymentCount] {
+            if env.storage().persistent().has(&key) {
+                env.storage().persistent().extend_ttl(
+                    &key,
+                    PERSISTENT_TTL_THRESHOLD,
+                    PERSISTENT_TTL_EXTEND_TO,
+                );
+            }
+        }
+    }
 }
+
+const PERSISTENT_TTL_THRESHOLD: u32 = 20_000;
+const PERSISTENT_TTL_EXTEND_TO: u32 = 120_000;
 
 mod test;
 
