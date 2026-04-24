@@ -114,23 +114,32 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({
     const reader = new FileReader();
 
     reader.onload = (e) => {
-      const content = e.target?.result as string;
-      const rows = parseCSV(content);
-      setParsedData(rows);
-      onDataParsed(rows);
+      try {
+        const content = e.target?.result as string;
+        const rows = parseCSV(content);
+        setParsedData(rows);
+        onDataParsed(rows);
 
-      // Show success feedback with summary
-      const validCount = rows.filter((r) => r.isValid).length;
-      const invalidCount = rows.filter((r) => !r.isValid).length;
+        // Show success feedback with summary
+        const validCount = rows.filter((r) => r.isValid).length;
+        const invalidCount = rows.filter((r) => !r.isValid).length;
 
-      if (validCount > 0) {
-        const summary =
-          invalidCount > 0
-            ? `${validCount} valid row${validCount !== 1 ? 's' : ''}, ${invalidCount} with error${invalidCount !== 1 ? 's' : ''}`
-            : `${validCount} row${validCount !== 1 ? 's' : ''} ready to upload`;
+        if (validCount > 0) {
+          const summary =
+            invalidCount > 0
+              ? `${validCount} valid row${validCount !== 1 ? 's' : ''}, ${invalidCount} with error${invalidCount !== 1 ? 's' : ''}`
+              : `${validCount} row${validCount !== 1 ? 's' : ''} ready to upload`;
 
-        notifySuccess('CSV uploaded successfully', summary);
+          notifySuccess('CSV uploaded successfully', summary);
+        }
+      } catch (error) {
+        alert('Error parsing CSV file. Please check the file format.');
+        console.error('CSV parsing error:', error);
       }
+    };
+
+    reader.onerror = () => {
+      alert('Error reading file. Please try again.');
     };
 
     reader.readAsText(file);

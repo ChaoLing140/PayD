@@ -82,7 +82,7 @@ _Focuses on project structure, database schema, payroll scheduling, and API logi
 | #054 | [API Rate Limiting](docs/issues/054-api-rate-limiting.md)                                             |   ● EASY   | ⏳ TODO |
 | #055 | [Health Dashboard API](docs/issues/055-health-api.md)                                                 |   ● EASY   | ⏳ TODO |
 | #056 | [Custom Tax Calculations Support](docs/issues/056-tax-calculations.md)                                |  ● MEDIUM  | ⏳ TODO |
-| #077 | [Contract Event Indexer Service](docs/issues/077-contract-event-indexer.md)                           |   ● HARD   | ⏳ TODO |
+| #077 | [Contract Event Indexer Service](docs/issues/077-contract-event-indexer.md)                           |   ● HARD   | ✅ DONE |
 | #078 | [Contract Address Registry API](docs/issues/078-contract-address-registry-api.md)                     |  ● MEDIUM  | ⏳ TODO |
 | #079 | [Preflight Balance Check Service](docs/issues/079-preflight-balance-check.md)                         |  ● MEDIUM  | ⏳ TODO |
 | #080 | [Transaction History Backend Integration](docs/issues/080-transaction-history-backend-integration.md) |  ● MEDIUM  | ⏳ TODO |
@@ -102,10 +102,10 @@ _Focuses on dashboard layout, wallet connection, management UI, and analytics._
 | ID   | Issue Title                                                                               | Difficulty | Status  |
 | :--- | :---------------------------------------------------------------------------------------- | :--------: | :-----: |
 | #021 | [Scaffold React 19 + Vite Project](docs/issues/021-react-vite-setup.md)                   |  ● MEDIUM  | ⏳ TODO |
-| #022 | [Build Employer Dashboard Layout](docs/issues/022-dashboard-layout.md)                    |   ● EASY   | ⏳ TODO |
-| #023 | [Implement Wallet Connect Flow](docs/issues/023-wallet-connect-ui.md)                     |   ● HARD   | ⏳ TODO |
+| #022 | [Build Employer Dashboard Layout](docs/issues/022-dashboard-layout.md)                    |   ● EASY   | ✅ DONE |
+| #023 | [Implement Wallet Connect Flow](docs/issues/023-wallet-connect-ui.md)                     |   ● HARD   | ✅ DONE |
 | #024 | [Build Employee Management Table](docs/issues/024-employee-table-ui.md)                   |  ● MEDIUM  | ⏳ TODO |
-| #025 | [Build CSV Upload UI](docs/issues/025-csv-upload-ui.md)                                   |  ● MEDIUM  | ⏳ TODO |
+| #025 | [Build CSV Upload UI](docs/issues/025-csv-upload-ui.md)                                   |  ● MEDIUM  | ✅ DONE |
 | #026 | [Build Payroll Analytics Dashboard](docs/issues/026-analytics-dashboard.md)               |   ● HARD   | ⏳ TODO |
 | #027 | [Build Employee Portal History View](docs/issues/027-employee-portal.md)                  |   ● EASY   | ⏳ TODO |
 | #028 | [Implement QR Code Onboarding](docs/issues/028-employee-onboarding-ui.md)                 |  ● MEDIUM  | ⏳ TODO |
