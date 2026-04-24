@@ -25,7 +25,7 @@ describe('EmployeeService', () => {
   const mockPool = pool as unknown as jest.Mocked<Pool>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     employeeService = new EmployeeService();
   });
 
@@ -35,7 +35,7 @@ describe('EmployeeService', () => {
       first_name: 'John',
       last_name: 'Doe',
       email: 'john@example.com',
-      wallet_address: 'GABC123',
+      wallet_address: 'GDRBQQEIW4URY57F2TRUQSCSUVVR3D7PJQQDXR23AXSEMDMASAW2V6VB',
       position: 'Dev',
       department: 'IT',
       status: 'active' as const,
@@ -120,6 +120,18 @@ describe('EmployeeService', () => {
       expect(result.withdrawal_preference).toBe('mobile_money');
       expect(result.mobile_money_provider).toBe('M-Pesa');
     });
+
+    it('should throw error for invalid Stellar wallet address', async () => {
+      const invalidData = {
+        ...mockEmployeeData,
+        wallet_address: 'invalid-address',
+      };
+
+      await expect(employeeService.create(invalidData)).rejects.toThrow(
+        'Invalid Stellar wallet address: invalid-address'
+      );
+      expect(mockPool.query).not.toHaveBeenCalled();
+    });
   });
 
   describe('findAll', () => {
@@ -156,14 +168,59 @@ describe('EmployeeService', () => {
       );
     });
 
-    it('should search across profile fields including job_title and phone', async () => {
+    it('should search across profile fields including job_title and phone via search_vector', async () => {
       (mockPool.query as jest.Mock).mockResolvedValueOnce({ rows: [] });
 
       await employeeService.findAll(1, { search: 'engineer', page: 1, limit: 10 });
 
       const calledQuery = (mockPool.query as jest.Mock).mock.calls[0][0];
-      expect(calledQuery).toContain('job_title ILIKE');
-      expect(calledQuery).toContain('phone ILIKE');
+      expect(calledQuery).toContain('search_vector @@');
+    });
+
+    it('should apply full-text search when q is provided', async () => {
+      (mockPool.query as jest.Mock).mockResolvedValueOnce({ rows: [] });
+
+      await employeeService.findAll(1, { q: 'alice', page: 1, limit: 10 });
+
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('plainto_tsquery'),
+        expect.arrayContaining(['alice', '%alice%'])
+      );
+    });
+
+    it('should rank results by relevance when q is provided', async () => {
+      (mockPool.query as jest.Mock).mockResolvedValueOnce({ rows: [] });
+
+      await employeeService.findAll(1, { q: 'alice', page: 1, limit: 10 });
+
+      const calledQuery = (mockPool.query as jest.Mock).mock.calls[0][0];
+      expect(calledQuery).toContain('ts_rank');
+    });
+
+    it('q takes precedence over search when both are provided', async () => {
+      (mockPool.query as jest.Mock).mockResolvedValueOnce({ rows: [] });
+
+      await employeeService.findAll(1, { q: 'alice', search: 'bob', page: 1, limit: 10 });
+
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.arrayContaining(['alice', '%alice%'])
+      );
+      expect(mockPool.query).not.toHaveBeenCalledWith(
+        expect.any(String),
+        expect.arrayContaining(['bob'])
+      );
+    });
+
+    it('falls back to search when q is absent', async () => {
+      (mockPool.query as jest.Mock).mockResolvedValueOnce({ rows: [] });
+
+      await employeeService.findAll(1, { search: 'bob', page: 1, limit: 10 });
+
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('plainto_tsquery'),
+        expect.arrayContaining(['bob', '%bob%'])
+      );
     });
   });
 
@@ -244,6 +301,15 @@ describe('EmployeeService', () => {
     it('should return null if no fields provided', async () => {
       const result = await employeeService.update(1, 1, {});
       expect(result).toBeNull();
+      expect(mockPool.query).not.toHaveBeenCalled();
+    });
+
+    it('should throw error for invalid Stellar wallet address on update', async () => {
+      const invalidData = { wallet_address: 'invalid-address' };
+
+      await expect(employeeService.update(1, 1, invalidData)).rejects.toThrow(
+        'Invalid Stellar wallet address: invalid-address'
+      );
       expect(mockPool.query).not.toHaveBeenCalled();
     });
   });

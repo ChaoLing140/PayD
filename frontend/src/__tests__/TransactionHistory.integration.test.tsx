@@ -1,8 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
 /**
  * Integration Tests for TransactionHistory Component
  *
@@ -68,6 +65,19 @@ vi.mock('../hooks/useSocket', () => ({
 // Mock ConnectionStatus component
 vi.mock('../components/ConnectionStatus', () => ({
   ConnectionStatus: () => null,
+}));
+
+vi.mock('@stellar/design-system', () => ({
+  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+  Card: ({ children, addlClassName, ...props }: any) => <div className={addlClassName} {...props}>{children}</div>,
+  Heading: ({ children }: any) => <h2>{children}</h2>,
+  Text: ({ children }: any) => <p>{children}</p>,
+  Input: ({ fieldSize, addlInputClassName, ...props }: any) => <input {...props} />,
+  Select: ({ children, fieldSize, label, note, ...props }: any) => (
+    <>
+      <select {...props}>{children}</select>
+    </>
+  ),
 }));
 
 /**
@@ -166,11 +176,13 @@ describe('TransactionHistory Integration', () => {
 
     // Wait for empty state to appear
     await waitFor(() => {
-      expect(getByText('No transactions found')).toBeInTheDocument();
+      expect(getByText('No transactions yet')).toBeInTheDocument();
     });
 
     // When no filters are active, should show default message
-    expect(getByText(/No transaction history available yet/)).toBeInTheDocument();
+    expect(
+      getByText(/Your payroll history will appear here once payments are sent/)
+    ).toBeInTheDocument();
   });
 
   test('displays error state and retry button on API failure', async () => {

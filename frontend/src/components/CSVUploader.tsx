@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, AlertCircle, CheckCircle } from 'lucide-react';
+import { useNotification } from '../hooks/useNotification';
 
 export interface CSVRow {
   rowNumber: number;
@@ -12,17 +13,20 @@ interface CSVUploaderProps {
   requiredColumns: string[];
   onDataParsed: (data: CSVRow[]) => void;
   validators?: Record<string, (value: string) => string | null>;
+  strictHeaderValidation?: boolean;
 }
 
 export const CSVUploader: React.FC<CSVUploaderProps> = ({
   requiredColumns,
   onDataParsed,
   validators = {},
+  strictHeaderValidation = true,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [parsedData, setParsedData] = useState<CSVRow[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { notifySuccess } = useNotification();
 
   const parseCSV = (content: string): CSVRow[] => {
     const lines = content.trim().split('\n');
@@ -31,7 +35,31 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({
     const headers = lines[0].split(',').map((h) => h.trim());
 
     // Validate headers
-    const missingColumns = requiredColumns.filter((col) => !headers.includes(col));
+    const normalizedHeaders = headers.map((h) => h.toLowerCase());
+    const normalizedRequired = requiredColumns.map((col) => col.toLowerCase());
+
+    const missingColumns = requiredColumns.filter(
+      (col) => !normalizedHeaders.includes(col.toLowerCase())
+    );
+
+    const unknownColumns = headers.filter(
+      (header) => !normalizedRequired.includes(header.toLowerCase())
+    );
+
+    const duplicateColumns = headers.filter(
+      (header, index) =>
+        normalizedHeaders.indexOf(header.toLowerCase()) !== index && header.trim().length > 0
+    );
+
+    if (strictHeaderValidation && unknownColumns.length > 0) {
+      alert(`Unexpected columns: ${unknownColumns.join(', ')}`);
+      return [];
+    }
+
+    if (duplicateColumns.length > 0) {
+      alert(`Duplicate columns found: ${[...new Set(duplicateColumns)].join(', ')}`);
+      return [];
+    }
     if (missingColumns.length > 0) {
       alert(`Missing required columns: ${missingColumns.join(', ')}`);
       return [];
@@ -45,7 +73,7 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({
       const errors: string[] = [];
 
       headers.forEach((header, idx) => {
-        row[header] = values[idx] || '';
+        row[header.toLowerCase()] = values[idx] || '';
       });
 
       // Validate each field
@@ -86,10 +114,32 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({
     const reader = new FileReader();
 
     reader.onload = (e) => {
-      const content = e.target?.result as string;
-      const rows = parseCSV(content);
-      setParsedData(rows);
-      onDataParsed(rows);
+      try {
+        const content = e.target?.result as string;
+        const rows = parseCSV(content);
+        setParsedData(rows);
+        onDataParsed(rows);
+
+        // Show success feedback with summary
+        const validCount = rows.filter((r) => r.isValid).length;
+        const invalidCount = rows.filter((r) => !r.isValid).length;
+
+        if (validCount > 0) {
+          const summary =
+            invalidCount > 0
+              ? `${validCount} valid row${validCount !== 1 ? 's' : ''}, ${invalidCount} with error${invalidCount !== 1 ? 's' : ''}`
+              : `${validCount} row${validCount !== 1 ? 's' : ''} ready to upload`;
+
+          notifySuccess('CSV uploaded successfully', summary);
+        }
+      } catch (error) {
+        alert('Error parsing CSV file. Please check the file format.');
+        console.error('CSV parsing error:', error);
+      }
+    };
+
+    reader.onerror = () => {
+      alert('Error reading file. Please try again.');
     };
 
     reader.readAsText(file);

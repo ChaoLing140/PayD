@@ -1,6 +1,9 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, contractevent, symbol_short, Address, Env, String, Symbol, token};
+use soroban_sdk::{
+    contract, contractevent, contractimpl, contracttype, symbol_short, token, Address, Env,
+    String, Symbol,
+};
 
 // ── Events ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +22,21 @@ pub struct PaymentStatusUpdatedEvent {
     pub new_status: Symbol,
 }
 
+#[contractevent]
+pub struct EscrowReleasedEvent {
+    #[topic]
+    pub payment_id: u64,
+    pub recipient: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+pub struct EscrowRefundedEvent {
+    #[topic]
+    pub payment_id: u64,
+    pub sender: Address,
+    pub amount: i128,
+}
 
 #[contracttype]
 #[derive(Clone)]
@@ -39,8 +57,13 @@ pub struct PaymentRecord {
     pub receiver_id: String,
     pub target_asset: String,
     pub anchor_id: String,
-    pub status: Symbol, // e.g. "pending", "completed", "failed"
+    pub status: Symbol,
 }
+
+const PERSISTENT_TTL_THRESHOLD: u32 = 20_000;
+const PERSISTENT_TTL_EXTEND_TO: u32 = 120_000;
+const PAYMENT_TTL_THRESHOLD: u32 = 100_000;
+const PAYMENT_TTL_EXTEND_TO: u32 = 1_500_000;
 
 #[contract]
 pub struct CrossAssetPaymentContract;
@@ -64,7 +87,7 @@ impl CrossAssetPaymentContract {
         String::from_str(&env, env!("CARGO_PKG_AUTHORS"))
     }
 
-    /// Initialize the contract with an admin.
+    /// Initializes the contract with an admin and resets the payment counter.
     pub fn init(env: Env, admin: Address) {
         if env.storage().persistent().has(&DataKey::Admin) {
             panic!("Already initialized");
@@ -74,13 +97,13 @@ impl CrossAssetPaymentContract {
         Self::bump_core_ttl(&env);
     }
 
-    /// Extends TTL for critical config/counter keys.
+    /// Extends TTL for critical config and counter keys.
     pub fn bump_ttl(env: Env) {
         Self::require_admin(&env);
         Self::bump_core_ttl(&env);
     }
 
-    /// Initiate a cross-asset payment.
+    /// Initiates a cross-asset payment and escrows the source asset in the contract.
     pub fn initiate_payment(
         env: Env,
         from: Address,
@@ -90,27 +113,21 @@ impl CrossAssetPaymentContract {
         target_asset: String,
         anchor_id: String,
     ) -> u64 {
-        from.require_auth();
+        if amount <= 0 {
+            panic!("Amount must be positive");
+        }
+        if receiver_id.is_empty() || target_asset.is_empty() || anchor_id.is_empty() {
+            panic!("Payment routing fields must be provided");
+        }
 
-        // Ledger sequence verification: prevent duplicate payments from the same sender in one ledger
+        from.require_auth();
         Self::require_unique_ledger(&env, &from);
 
-        // Transfer funds from sender to this contract (escrow)
         let token_client = token::Client::new(&env, &asset);
-        token_client.transfer(&from, &env.current_contract_address(), &amount);
+        token_client.transfer(&from, env.current_contract_address(), &amount);
 
-        // Increment payment counter
-        Self::bump_core_ttl(&env);
-        let mut count: u64 = env.storage().persistent().get(&DataKey::PaymentCount).unwrap_or(0);
-        count += 1;
-        env.storage().persistent().set(&DataKey::PaymentCount, &count);
-        env.storage().persistent().extend_ttl(
-            &DataKey::PaymentCount,
-            PERSISTENT_TTL_THRESHOLD,
-            PERSISTENT_TTL_EXTEND_TO,
-        );
+        let payment_id = Self::increment_payment_count(&env);
 
-        // Store the payment record
         let record = PaymentRecord {
             from,
             amount,
@@ -121,44 +138,216 @@ impl CrossAssetPaymentContract {
             status: symbol_short!("pending"),
         };
 
-        // Store the payment record in Persistent storage to keep Instance storage light
-        let key = DataKey::Payment(count);
-        env.storage().persistent().set(&key, &record);
-        
-        // Extend TTL (3 months default)
-        env.storage().persistent().extend_ttl(&key, 100_000, 1_500_000);
+        Self::store_payment(&env, payment_id, &record);
+        PaymentInitiatedEvent {
+            payment_id,
+            from: record.from.clone(),
+            amount: record.amount,
+        }
+        .publish(&env);
 
-        // Emit typed event for backend/anchor tracking
-        PaymentInitiatedEvent { payment_id: count, from: record.from.clone(), amount: record.amount }.publish(&env);
-
-        count
+        payment_id
     }
 
-    /// Update the status of a payment (Admin or Anchor authorized).
+    /// Updates the stored status for a payment record (admin only).
     pub fn update_status(env: Env, payment_id: u64, new_status: Symbol) {
         Self::require_admin(&env);
 
-        let key = DataKey::Payment(payment_id);
-        let mut record: PaymentRecord = env.storage().persistent()
-            .get(&key)
-            .expect("Payment not found");
-
+        let mut record = Self::load_payment(&env, payment_id);
         record.status = new_status.clone();
-        env.storage().persistent().set(&key, &record);
-        env.storage().persistent().extend_ttl(&key, 100_000, 1_500_000);
+        Self::store_payment(&env, payment_id, &record);
 
-        PaymentStatusUpdatedEvent { payment_id, new_status }.publish(&env);
+        PaymentStatusUpdatedEvent {
+            payment_id,
+            new_status,
+        }
+        .publish(&env);
     }
 
-    /// Get details of a payment.
+    /// Completes a pending payment and releases escrowed funds to the recipient.
+    pub fn complete_payment(env: Env, admin: Address, payment_id: u64, recipient: Address) {
+        Self::require_matching_admin(&env, &admin);
+
+        let mut record = Self::load_payment(&env, payment_id);
+        Self::require_pending_status(&record);
+
+        let token_client = token::Client::new(&env, &record.asset);
+        token_client.transfer(&env.current_contract_address(), &recipient, &record.amount);
+
+        record.status = symbol_short!("complete");
+        Self::store_payment(&env, payment_id, &record);
+
+        PaymentStatusUpdatedEvent {
+            payment_id,
+            new_status: symbol_short!("complete"),
+        }
+        .publish(&env);
+        EscrowReleasedEvent {
+            payment_id,
+            recipient,
+            amount: record.amount,
+        }
+        .publish(&env);
+    }
+
+    /// Marks a pending payment as failed and refunds escrowed funds to the sender.
+    pub fn fail_payment(env: Env, admin: Address, payment_id: u64) {
+        Self::require_matching_admin(&env, &admin);
+
+        let mut record = Self::load_payment(&env, payment_id);
+        Self::require_pending_status(&record);
+
+        let token_client = token::Client::new(&env, &record.asset);
+        token_client.transfer(&env.current_contract_address(), &record.from, &record.amount);
+
+        record.status = symbol_short!("failed");
+        Self::store_payment(&env, payment_id, &record);
+
+        PaymentStatusUpdatedEvent {
+            payment_id,
+            new_status: symbol_short!("failed"),
+        }
+        .publish(&env);
+        EscrowRefundedEvent {
+            payment_id,
+            sender: record.from,
+            amount: record.amount,
+        }
+        .publish(&env);
+    }
+
+    /// Returns the stored payment details when present.
     pub fn get_payment(env: Env, payment_id: u64) -> Option<PaymentRecord> {
         let key = DataKey::Payment(payment_id);
         let record = env.storage().persistent().get(&key);
         if record.is_some() {
-            env.storage().persistent().extend_ttl(&key, 100_000, 1_500_000);
+            env.storage().persistent().extend_ttl(
+                &key,
+                PAYMENT_TTL_THRESHOLD,
+                PAYMENT_TTL_EXTEND_TO,
+            );
         }
         record
+    }
+
+    /// Returns the total number of payments created by this contract.
+    pub fn get_payment_count(env: Env) -> u64 {
+        let key = DataKey::PaymentCount;
+        let count = env.storage().persistent().get(&key).unwrap_or(0);
+        if env.storage().persistent().has(&key) {
+            env.storage().persistent().extend_ttl(
+                &key,
+                PERSISTENT_TTL_THRESHOLD,
+                PERSISTENT_TTL_EXTEND_TO,
+            );
+        }
+        count
+    }
+
+    /// Returns the last ledger in which the sender initiated a payment.
+    pub fn get_last_payment_ledger(env: Env, sender: Address) -> u32 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::LastPaymentLedger(sender))
+            .unwrap_or(0)
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────
+
+    fn increment_payment_count(env: &Env) -> u64 {
+        Self::bump_core_ttl(env);
+        let mut count: u64 = env.storage().persistent().get(&DataKey::PaymentCount).unwrap_or(0);
+        count += 1;
+        env.storage().persistent().set(&DataKey::PaymentCount, &count);
+        env.storage().persistent().extend_ttl(
+            &DataKey::PaymentCount,
+            PERSISTENT_TTL_THRESHOLD,
+            PERSISTENT_TTL_EXTEND_TO,
+        );
+        count
+    }
+
+    fn load_payment(env: &Env, payment_id: u64) -> PaymentRecord {
+        let key = DataKey::Payment(payment_id);
+        let record: PaymentRecord = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .expect("Payment not found");
+        env.storage().persistent().extend_ttl(
+            &key,
+            PAYMENT_TTL_THRESHOLD,
+            PAYMENT_TTL_EXTEND_TO,
+        );
+        record
+    }
+
+    fn store_payment(env: &Env, payment_id: u64, record: &PaymentRecord) {
+        let key = DataKey::Payment(payment_id);
+        env.storage().persistent().set(&key, record);
+        env.storage().persistent().extend_ttl(
+            &key,
+            PAYMENT_TTL_THRESHOLD,
+            PAYMENT_TTL_EXTEND_TO,
+        );
+    }
+
+    fn require_pending_status(record: &PaymentRecord) {
+        if record.status != symbol_short!("pending") {
+            panic!("Payment must be pending");
+        }
+    }
+
+    fn require_admin(env: &Env) {
+        let admin: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Admin)
+            .expect("Not initialized");
+        admin.require_auth();
+    }
+
+    fn require_matching_admin(env: &Env, admin: &Address) {
+        let stored_admin: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Admin)
+            .expect("Not initialized");
+        if stored_admin != *admin {
+            panic!("Unauthorized admin");
+        }
+        admin.require_auth();
+    }
+
+    fn require_unique_ledger(env: &Env, sender: &Address) {
+        let current_ledger = env.ledger().sequence();
+        let key = DataKey::LastPaymentLedger(sender.clone());
+        let last_ledger: u32 = env.storage().persistent().get(&key).unwrap_or(0);
+        if last_ledger == current_ledger && current_ledger != 0 {
+            panic!("Payment already initiated in this ledger sequence");
+        }
+        env.storage().persistent().set(&key, &current_ledger);
+        env.storage().persistent().extend_ttl(
+            &key,
+            PERSISTENT_TTL_THRESHOLD,
+            PERSISTENT_TTL_EXTEND_TO,
+        );
+    }
+
+    fn bump_core_ttl(env: &Env) {
+        for key in [DataKey::Admin, DataKey::PaymentCount] {
+            if env.storage().persistent().has(&key) {
+                env.storage().persistent().extend_ttl(
+                    &key,
+                    PERSISTENT_TTL_THRESHOLD,
+                    PERSISTENT_TTL_EXTEND_TO,
+                );
+            }
+        }
     }
 }
 
 mod test;
+
+#[cfg(test)]
+mod test_escrow;
