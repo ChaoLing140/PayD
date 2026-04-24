@@ -7,8 +7,67 @@ import { config } from '../config/env.js';
 import jwt from 'jsonwebtoken';
 import { validatePasswordStrength } from '../utils/passwordStrength.js';
 import { apiErrorResponse, ErrorCodes } from '../utils/apiError.js';
+import { getRedisClient } from '../services/rateLimitService.js';
 
 const pool = new Pool({ connectionString: config.DATABASE_URL });
+
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_SECONDS = 15 * 60; // 15 minutes
+
+async function recordFailedAttempt(walletAddress: string): Promise<void> {
+  const redis = getRedisClient();
+  const key = `login:failures:${walletAddress}`;
+  if (redis) {
+    const attempts = await redis.incr(key);
+    if (attempts === 1) await redis.expire(key, LOCKOUT_SECONDS);
+  } else {
+    await pool.query(
+      `UPDATE users
+       SET failed_login_attempts = failed_login_attempts + 1,
+           locked_until = CASE
+             WHEN failed_login_attempts + 1 >= $1
+               THEN NOW() + INTERVAL '${LOCKOUT_SECONDS} seconds'
+             ELSE locked_until
+           END
+       WHERE wallet_address = $2`,
+      [MAX_FAILED_ATTEMPTS, walletAddress]
+    );
+  }
+}
+
+async function clearFailedAttempts(walletAddress: string): Promise<void> {
+  const redis = getRedisClient();
+  if (redis) {
+    await redis.del(`login:failures:${walletAddress}`);
+  } else {
+    await pool.query(
+      `UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE wallet_address = $1`,
+      [walletAddress]
+    );
+  }
+}
+
+async function isLockedOut(walletAddress: string): Promise<{ locked: boolean; retryAfter?: number }> {
+  const redis = getRedisClient();
+  if (redis) {
+    const key = `login:failures:${walletAddress}`;
+    const attempts = parseInt((await redis.get(key)) ?? '0', 10);
+    if (attempts >= MAX_FAILED_ATTEMPTS) {
+      const ttl = await redis.ttl(key);
+      return { locked: true, retryAfter: ttl > 0 ? ttl : LOCKOUT_SECONDS };
+    }
+    return { locked: false };
+  }
+  const result = await pool.query(
+    `SELECT locked_until FROM users WHERE wallet_address = $1`,
+    [walletAddress]
+  );
+  const lockedUntil: Date | null = result.rows[0]?.locked_until ?? null;
+  if (lockedUntil && lockedUntil > new Date()) {
+    return { locked: true, retryAfter: Math.ceil((lockedUntil.getTime() - Date.now()) / 1000) };
+  }
+  return { locked: false };
+}
 
 export class AuthController {
   /**
@@ -176,6 +235,14 @@ export class AuthController {
     }
 
     try {
+      const lockout = await isLockedOut(walletAddress);
+      if (lockout.locked) {
+        return res.status(429).json({
+          ...apiErrorResponse(ErrorCodes.TOO_MANY_REQUESTS ?? 'TOO_MANY_REQUESTS', 'Account temporarily locked due to too many failed attempts.'),
+          retryAfter: lockout.retryAfter,
+        });
+      }
+
       const result = await pool.query(
         'SELECT id, wallet_address, organization_id, role, totp_secret FROM users WHERE wallet_address = $1',
         [walletAddress]
@@ -188,11 +255,11 @@ export class AuthController {
       const isValid = authenticator.check(token, user.totp_secret);
 
       if (isValid) {
+        await clearFailedAttempts(walletAddress);
         await pool.query('UPDATE users SET is_2fa_enabled = true WHERE wallet_address = $1', [
           walletAddress,
         ]);
 
-        // Issue tokens upon successful 2FA verification
         const accessToken = jwt.sign(
           {
             id: user.id,
@@ -221,6 +288,7 @@ export class AuthController {
           message: '2FA verified successfully',
         });
       } else {
+        await recordFailedAttempt(walletAddress);
         res.status(401).json(apiErrorResponse(ErrorCodes.UNAUTHORIZED, 'Invalid 2FA token'));
       }
     } catch (error: any) {
@@ -276,6 +344,14 @@ export class AuthController {
     }
 
     try {
+      const lockout = await isLockedOut(walletAddress);
+      if (lockout.locked) {
+        return res.status(429).json({
+          ...apiErrorResponse(ErrorCodes.TOO_MANY_REQUESTS ?? 'TOO_MANY_REQUESTS', 'Account temporarily locked due to too many failed attempts.'),
+          retryAfter: lockout.retryAfter,
+        });
+      }
+
       const result = await pool.query(
         'SELECT id, wallet_address, organization_id, role, is_2fa_enabled FROM users WHERE wallet_address = $1',
         [walletAddress]
