@@ -171,7 +171,9 @@ export default function PayrollAnalytics() {
           <motion.div variants={cardVariants}>
             <Card>
               <div className="p-6">
-                <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Total Payroll</p>
+                <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+                  Total Payroll
+                </p>
                 <h3 className="text-3xl font-bold mt-1 text-indigo-500">
                   ${data.trends.reduce((acc, curr) => acc + curr.total, 0).toLocaleString()}
                 </h3>
@@ -184,7 +186,9 @@ export default function PayrollAnalytics() {
           <motion.div variants={cardVariants}>
             <Card>
               <div className="p-6">
-                <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Avg. Salary</p>
+                <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+                  Avg. Salary
+                </p>
                 <h3 className="text-3xl font-bold mt-1 text-cyan-500">$5,420</h3>
                 <p className="text-xs text-gray-400 mt-2">Across 42 employees</p>
               </div>
@@ -193,7 +197,9 @@ export default function PayrollAnalytics() {
           <motion.div variants={cardVariants}>
             <Card>
               <div className="p-6">
-                <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Payment Success</p>
+                <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">
+                  Payment Success
+                </p>
                 <h3 className="text-3xl font-bold mt-1 text-amber-500">98.4%</h3>
                 <p className="text-xs text-gray-400 mt-2">Historical average</p>
               </div>

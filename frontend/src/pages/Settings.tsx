@@ -11,7 +11,9 @@ export default function Settings() {
     <div className="flex-1 flex flex-col items-center justify-start p-6 md:p-12 max-w-3xl mx-auto w-full">
       <div className="w-full mb-8 md:mb-12 flex items-end justify-between border-b border-hi pb-6 md:pb-8">
         <div>
-          <h1 className="text-3xl md:text-4xl font-black mb-2 tracking-tight">{t('settings.title')}</h1>
+          <h1 className="text-3xl md:text-4xl font-black mb-2 tracking-tight">
+            {t('settings.title')}
+          </h1>
         </div>
       </div>
 

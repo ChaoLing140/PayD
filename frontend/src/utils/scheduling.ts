@@ -39,9 +39,7 @@ export function clampDayOfMonth(year: number, monthIndex: number, desired: numbe
   return Math.max(1, Math.min(desired, lastDay));
 }
 
-export function validateSchedulingConfig(
-  config: SchedulingConfig
-): SchedulingValidationErrors {
+export function validateSchedulingConfig(config: SchedulingConfig): SchedulingValidationErrors {
   const errors: SchedulingValidationErrors = {};
 
   if (!TIME_OF_DAY_PATTERN.test(config.timeOfDay)) {
@@ -65,10 +63,7 @@ export function validateSchedulingConfig(
   return errors;
 }
 
-export function computeNextRunDate(
-  config: SchedulingConfig,
-  from: Date = new Date()
-): Date {
+export function computeNextRunDate(config: SchedulingConfig, from: Date = new Date()): Date {
   const { hours, minutes } = parseTimeOfDay(config.timeOfDay);
 
   if (config.frequency === 'monthly') {

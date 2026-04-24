@@ -37,9 +37,9 @@ vi.mock('@creit.tech/stellar-wallets-kit', () => ({
     TESTNET: 'TESTNET',
     PUBLIC: 'PUBLIC',
   },
-  FreighterModule: class { },
-  xBullModule: class { },
-  LobstrModule: class { },
+  FreighterModule: class {},
+  xBullModule: class {},
+  LobstrModule: class {},
   FREIGHTER_ID: 'freighter',
   LOBSTR_ID: 'lobstr',
 }));

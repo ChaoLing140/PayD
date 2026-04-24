@@ -363,7 +363,8 @@ export const SchedulingWizard = ({
             </div>
 
             <div className="md:col-span-2 rounded-2xl border border-hi bg-black/15 p-4 text-sm text-muted">
-              Previewed dates are rendered in <span className="font-semibold text-text">{timezoneLabel}</span>.
+              Previewed dates are rendered in{' '}
+              <span className="font-semibold text-text">{timezoneLabel}</span>.
             </div>
           </div>
         ) : null}
@@ -454,7 +455,9 @@ export const SchedulingWizard = ({
                     <span className="font-mono text-text">{config.timeOfDay}</span>
                   </div>
                   <div>
-                    <span className="block text-xs uppercase tracking-wider text-muted">Timezone</span>
+                    <span className="block text-xs uppercase tracking-wider text-muted">
+                      Timezone
+                    </span>
                     <span className="font-semibold text-text">{timezoneLabel}</span>
                   </div>
                   <div>
@@ -528,9 +531,7 @@ export const SchedulingWizard = ({
             role="alert"
           >
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <div>
-              {errors.dayOfMonth ?? errors.dayOfWeek ?? errors.timeOfDay}
-            </div>
+            <div>{errors.dayOfMonth ?? errors.dayOfWeek ?? errors.timeOfDay}</div>
           </div>
         ) : null}
 

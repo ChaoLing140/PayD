@@ -89,7 +89,7 @@ export class LocalStorageHelper<T> {
     window.localStorage.setItem(this.key, JSON.stringify(payload));
   }
 
-  /** 
+  /**
    * Remove the stored key and its value from localStorage.
    * No-op during server-side rendering (SSR).
    */

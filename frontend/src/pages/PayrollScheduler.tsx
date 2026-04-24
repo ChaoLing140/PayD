@@ -304,10 +304,7 @@ export default function PayrollScheduler() {
         const errorMessage = axios.isAxiosError(err)
           ? ((err as AxiosError<{ error?: string }>).response?.data?.error ?? fallback)
           : fallback;
-        notifyApiError(
-          'Webhook trigger failed',
-          errorMessage
-        );
+        notifyApiError('Webhook trigger failed', errorMessage);
         console.warn('Webhook trigger error:', err);
       }
 

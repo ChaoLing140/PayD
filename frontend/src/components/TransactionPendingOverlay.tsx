@@ -74,9 +74,7 @@ export const TransactionPendingOverlay: React.FC<TransactionPendingOverlayProps>
     >
       {visibleTransactions.map((transaction) => {
         const title = getStatusLabel(transaction.status);
-        const explorerUrl = transaction.hash
-          ? getTxExplorerUrl(transaction.hash, network)
-          : null;
+        const explorerUrl = transaction.hash ? getTxExplorerUrl(transaction.hash, network) : null;
 
         return (
           <article
@@ -98,10 +96,7 @@ export const TransactionPendingOverlay: React.FC<TransactionPendingOverlayProps>
                     />
                   ) : null}
                   {transaction.status === 'confirmed' ? (
-                    <CheckCircle2
-                      className="h-5 w-5 text-[var(--success)]"
-                      aria-hidden="true"
-                    />
+                    <CheckCircle2 className="h-5 w-5 text-[var(--success)]" aria-hidden="true" />
                   ) : null}
                   {transaction.status === 'failed' ? (
                     <XCircle className="h-5 w-5 text-[var(--danger)]" aria-hidden="true" />

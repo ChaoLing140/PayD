@@ -37,7 +37,9 @@ class ContractService {
 
     for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
       try {
-        const response = await axiosInstance.get<ContractRegistry>(`${this.API_BASE_URL}/api/contracts`);
+        const response = await axiosInstance.get<ContractRegistry>(
+          `${this.API_BASE_URL}/api/contracts`
+        );
 
         // Update cache
         this.cache = response.data;

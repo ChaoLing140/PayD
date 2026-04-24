@@ -17,7 +17,7 @@ const EXPLORER_BASE =
   'https://stellar.expert/explorer/testnet/tx/';
 
 /**
- * Resolve a human-friendly network string to the specific path segment 
+ * Resolve a human-friendly network string to the specific path segment
  * recognized by Stellar Expert (`public` or `testnet`).
  *
  * @param network - Network identifier (e.g., 'MAINNET', 'TESTNET', 'public')
@@ -32,7 +32,7 @@ function resolveNetwork(network: string): 'public' | 'testnet' {
  * Build a full Stellar Expert transaction explorer URL.
  *
  * @param txHash - The 64-character hex transaction hash
- * @param network - Optional network identifier; when omitted, the 
+ * @param network - Optional network identifier; when omitted, the
  *                `VITE_STELLAR_EXPLORER_TX_URL` env var is used as a base
  * @returns The complete transaction explorer URL
  */

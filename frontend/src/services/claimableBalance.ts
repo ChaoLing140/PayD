@@ -50,7 +50,9 @@ class ClaimableBalanceService {
   }
 
   async getClaimsSummary(): Promise<ClaimsSummary> {
-    const response = await axiosInstance.get<{ success: boolean; data: ClaimsSummary }>(`${this.baseUrl}/summary`);
+    const response = await axiosInstance.get<{ success: boolean; data: ClaimsSummary }>(
+      `${this.baseUrl}/summary`
+    );
     return response.data.data;
   }
 
@@ -58,14 +60,19 @@ class ClaimableBalanceService {
     employeeId: number,
     options: { status?: string; page?: number; limit?: number } = {}
   ): Promise<PaginatedClaims> {
-    const response = await axiosInstance.get<PaginatedClaims>(`${this.baseUrl}/employee/${employeeId}`, {
-      params: options,
-    });
+    const response = await axiosInstance.get<PaginatedClaims>(
+      `${this.baseUrl}/employee/${employeeId}`,
+      {
+        params: options,
+      }
+    );
     return response.data;
   }
 
   async getClaimById(id: number): Promise<ClaimableBalance> {
-    const response = await axiosInstance.get<{ success: boolean; data: ClaimableBalance }>(`${this.baseUrl}/${id}`);
+    const response = await axiosInstance.get<{ success: boolean; data: ClaimableBalance }>(
+      `${this.baseUrl}/${id}`
+    );
     return response.data.data;
   }
 

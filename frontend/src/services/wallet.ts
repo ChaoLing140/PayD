@@ -60,9 +60,7 @@ export async function getWalletInfo(): Promise<WalletInfo | null> {
   }
 }
 
-export async function signTransactionWithWallet(
-  options: SignTransactionOptions
-): Promise<string> {
+export async function signTransactionWithWallet(options: SignTransactionOptions): Promise<string> {
   const { transactionXdr, network } = options;
   const freighter = getFreighterApi();
   if (!freighter) {
@@ -76,10 +74,7 @@ export async function signTransactionWithWallet(
   return signed;
 }
 
-export function signTransactionObject(
-  keypair: Keypair,
-  transaction: Transaction
-): Transaction {
+export function signTransactionObject(keypair: Keypair, transaction: Transaction): Transaction {
   const signable = transaction as Transaction & { sign: (kp: Keypair) => void };
   signable.sign(keypair);
   return transaction;

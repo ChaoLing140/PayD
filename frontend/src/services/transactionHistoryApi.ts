@@ -29,8 +29,6 @@ import { AxiosError } from 'axios';
 // Configuration
 // ============================================================================
 
-
-
 // ============================================================================
 // Error Handling
 // ============================================================================
@@ -88,8 +86,6 @@ export function categorizeError(error: unknown): ErrorState {
 // ============================================================================
 // Query Parameter Building
 // ============================================================================
-
-
 
 // ============================================================================
 // Audit API Functions
@@ -158,15 +154,18 @@ export async function fetchContractEvents(
   const { contractId, page, limit, eventType, category } = options;
 
   try {
-    const response = await axiosInstance.get<ContractEventsApiResponse>(`/api/events/${contractId}`, {
-      params: {
-        page,
-        limit,
-        eventType,
-        category,
-      },
-      signal,
-    });
+    const response = await axiosInstance.get<ContractEventsApiResponse>(
+      `/api/events/${contractId}`,
+      {
+        params: {
+          page,
+          limit,
+          eventType,
+          category,
+        },
+        signal,
+      }
+    );
 
     return response.data;
   } catch (error) {
