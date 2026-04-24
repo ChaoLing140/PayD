@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use super::*;
-use soroban_sdk::testutils::Address as _;
+use soroban_sdk::testutils::{Address as _, Ledger};
 use soroban_sdk::{token, Address, Env, String};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ fn test_get_payment_returns_none_for_unknown_id() {
 
 #[test]
 #[should_panic(expected = "Already initialized")]
-fn test_init_twice_panics() {
+fn test_init_twice_panics_in_escrow_suite() {
     let (env, admin, _contract_id, client) = setup();
     client.init(&admin); // second init should panic
     let _ = &env;
