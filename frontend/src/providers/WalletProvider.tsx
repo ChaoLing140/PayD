@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { WalletContext } from '../hooks/useWallet';
 import { useWalletManager } from '../hooks/useWalletManager';
 
-export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const WalletProvider: React.FC<{
+  children: React.ReactNode;
+  connectionTimeoutMs?: number;
+}> = ({ children, connectionTimeoutMs }) => {
   const { t } = useTranslation();
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
@@ -23,7 +26,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setWalletModalOpen,
     walletOptions,
     connectWithWallet: baseConnectWithWallet,
-  } = useWalletManager();
+  } = useWalletManager(connectionTimeoutMs);
 
   const connectWithWallet = async (selectedWalletId: string): Promise<string | null> => {
     setConnectionError(null);

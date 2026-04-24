@@ -32,7 +32,7 @@ function hasAnyWalletExtension(): boolean {
   return Boolean(extendedWindow.freighterApi || extendedWindow.xBullSDK || extendedWindow.lobstr);
 }
 
-export function useWalletManager() {
+export function useWalletManager(connectionTimeoutMs: number = 15000) {
   const [address, setAddress] = useState<string | null>(null);
   const [walletName, setWalletName] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -117,7 +117,7 @@ export function useWalletManager() {
         const timeoutPromise = new Promise<{ address: string }>((_, reject) => {
           timeoutId = setTimeout(
             () => reject(new Error('Connection timed out after 15 seconds.')),
-            15000
+            connectionTimeoutMs
           );
         });
 
